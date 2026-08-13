@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "tamizchat (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "tamizchat (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
