@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Window
-    x:Class="tamizchat.MainWindow"
+    x:Class="TamizChat.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:tamizchat"
+    xmlns:local="using:TamizChat"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="tamizchat">
-
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
+    Title="TamizChat">
 
     <Grid>
-
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6">
+            <TextBlock Text="TamizChat" FontSize="28" HorizontalAlignment="Center" />
+            <TextBlock x:Name="Subtitle" Opacity="0.7" HorizontalAlignment="Center" />
+        </StackPanel>
     </Grid>
 </Window>
