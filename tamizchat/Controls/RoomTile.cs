@@ -2,6 +2,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
 
 namespace TamizChat.Controls;
@@ -23,6 +24,14 @@ public sealed class RoomTile : Grid
     private readonly TextBlock _empty;
 
     private Room _room;
+
+    /// <summary>Passes the talking ring down to the people in this room.</summary>
+    public void SetSpeaking(IReadOnlyList<string> identities) => _members.SetSpeaking(identities);
+
+    /// <summary>Passes a camera or screen frame to whoever sent it.</summary>
+    public void SetVideoFrame(RemoteVideoFrame frame) => _members.SetVideoFrame(frame);
+
+    public void ClearVideo(string identity, VideoKind kind) => _members.ClearVideo(identity, kind);
 
     public RoomTile(Room room, bool isMine)
     {

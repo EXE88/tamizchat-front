@@ -238,6 +238,38 @@ public sealed class ServerSession
         return download;
     }
 
+    // --- media ---
+
+    /// <summary>Raised as people turn their microphone or camera on and off.</summary>
+    public event EventHandler<MediaStateEvent>? MediaStateChanged;
+
+    /// <summary>
+    /// Credentials for the LiveKit room matching the room the user is in right
+    /// now. They expire in fifteen minutes and are room-scoped, so this is asked
+    /// again on every join rather than cached.
+    /// </summary>
+    public async Task<MediaToken?> GetMediaTokenAsync()
+    {
+        if (_client is null)
+        {
+            return null;
+        }
+
+        var reply = await _client.RequestAsync(MessageTypes.MediaToken).ConfigureAwait(true);
+        return TamizChatClient.Deserialize<MediaToken>(reply);
+    }
+
+    /// <summary>
+    /// Reports what we have switched on, so everyone's room tree can show the
+    /// right icons. It is our own report because only this client knows whether
+    /// the microphone is really open; what we are *allowed* to publish is decided
+    /// server-side and enforced by LiveKit.
+    /// </summary>
+    public Task SetMediaStateAsync(bool mic, bool cam = false, bool screen = false) =>
+        _client is null
+            ? Task.CompletedTask
+            : _client.SendAsync(MessageTypes.MediaSetState, new MediaSetState { Mic = mic, Cam = cam, Screen = screen });
+
     // --- paint ---
 
     /// <summary>Raised for every stroke event from the board, ours excluded.</summary>
@@ -382,6 +414,14 @@ public sealed class ServerSession
                 if (e.As<ChatTyping>() is { } typing)
                 {
                     _ui.TryEnqueue(() => TypingChanged?.Invoke(this, typing));
+                }
+
+                break;
+
+            case MessageTypes.MediaState:
+                if (e.As<MediaStateEvent>() is { } media)
+                {
+                    _ui.TryEnqueue(() => MediaStateChanged?.Invoke(this, media));
                 }
 
                 break;

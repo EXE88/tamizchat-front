@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using TamizChat.Controls;
+using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
 using Room = TamizChat.Core.Protocol.Room;
 using TamizChat.Services;
@@ -29,17 +30,86 @@ public sealed partial class ServerPage : Page
         InitializeComponent();
 
         Loaded += OnLoaded;
-        Unloaded += (_, _) => ServerSession.Instance.Changed -= OnSessionChanged;
+        Unloaded += (_, _) =>
+        {
+            ServerSession.Instance.Changed -= OnSessionChanged;
+            VoiceService.Instance.Changed -= OnVoiceChanged;
+            VoiceService.Instance.VideoFrameReceived -= OnVideoFrame;
+            VoiceService.Instance.VideoTrackEnded -= OnVideoEnded;
+        };
         GridScroller.SizeChanged += (_, _) => Relayout();
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         ServerSession.Instance.Changed += OnSessionChanged;
+        VoiceService.Instance.Changed += OnVoiceChanged;
+        VoiceService.Instance.VideoFrameReceived += OnVideoFrame;
+        VoiceService.Instance.VideoTrackEnded += OnVideoEnded;
         Render();
+
+        // Voice follows the room automatically; the bottom bar owns the mic,
+        // speaker, camera and screen from there.
+        _ = JoinVoiceAsync();
     }
 
-    private void OnSessionChanged(object? sender, EventArgs e) => Render();
+    private void OnSessionChanged(object? sender, EventArgs e)
+    {
+        Render();
+
+        // The server, not our own copy, decides which room we are in, so voice
+        // follows the refreshed tree rather than the join call.
+        _ = JoinVoiceAsync();
+    }
+
+    private async Task JoinVoiceAsync()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(ServerSession.Instance.MyRoomId))
+            {
+                await VoiceService.Instance.LeaveAsync();
+                return;
+            }
+
+            await VoiceService.Instance.JoinAsync();
+        }
+        catch (Exception)
+        {
+            // Voice failing must never take the room grid down with it.
+        }
+    }
+
+    private void OnVoiceChanged(object? sender, EventArgs e)
+    {
+        var voice = VoiceService.Instance;
+
+        foreach (var tile in _tiles.Values)
+        {
+            tile.SetSpeaking(voice.Speakers);
+        }
+    }
+
+    /// <summary>
+    /// Video goes to the tile of the room the sender is in, which is found by
+    /// asking the tiles rather than tracking it here: the session already knows
+    /// who is where, and duplicating that mapping is how the two drift apart.
+    /// </summary>
+    private void OnVideoFrame(object? sender, RemoteVideoFrame frame)
+    {
+        foreach (var tile in _tiles.Values)
+        {
+            tile.SetVideoFrame(frame);
+        }
+    }
+
+    private void OnVideoEnded(object? sender, RemoteVideoFrame frame)
+    {
+        foreach (var tile in _tiles.Values)
+        {
+            tile.ClearVideo(frame.Identity, frame.Kind);
+        }
+    }
 
     private void OnExpandClick(object sender, RoutedEventArgs e)
     {

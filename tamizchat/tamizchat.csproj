@@ -47,6 +47,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TamizChat.Core\TamizChat.Core.csproj" />
+    <ProjectReference Include="..\TamizChat.Audio\TamizChat.Audio.csproj" />
   </ItemGroup>
 
   <ItemGroup>

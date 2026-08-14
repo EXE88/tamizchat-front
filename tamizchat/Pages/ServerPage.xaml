@@ -31,6 +31,10 @@
                     Foreground="{StaticResource TcTextSecondaryBrush}" />
             </StackPanel>
 
+            <!--
+                Microphone, camera and screen live on the bottom bar, which is the
+                one place that owns them. Nothing here duplicates those controls.
+            -->
             <Button
                 x:Name="ExpandButton"
                 Grid.Column="1"

@@ -12,4 +12,19 @@
     <RootNamespace>TamizChat.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!--
+      The LiveKit client. This package *is* the official LiveKit Rust FFI: it
+      carries the same native livekit_ffi the Unity and Flutter SDKs use, for
+      win-x64, win-arm64, linux and macOS, and drives it over the generated
+      protobuf protocol.
+
+      It does no device I/O at all — audio is pushed in and pulled out as PCM
+      frames — which is exactly why the voice changer needs no virtual audio
+      driver, and why this reference can live in a library with no Windows
+      dependency.
+    -->
+    <PackageReference Include="Livekit.Rtc.Dotnet" Version="0.1.3" />
+  </ItemGroup>
+
 </Project>

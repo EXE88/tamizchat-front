@@ -422,6 +422,45 @@ public sealed class ChatTyping
     public bool Typing { get; set; }
 }
 
+/// <summary>
+/// The reply to <c>media.token</c>: everything needed to enter the LiveKit room
+/// for the room the user is in <em>right now</em>.
+///
+/// The token lasts fifteen minutes and is only needed at connect time, so it is
+/// asked for on joining and never cached across rooms.
+/// </summary>
+public sealed class MediaToken
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("token")]
+    public string Token { get; set; } = "";
+
+    /// <summary>The LiveKit room name, which is exactly the TamizChat room id.</summary>
+    [JsonPropertyName("room")]
+    public string Room { get; set; } = "";
+
+    /// <summary>The LiveKit participant identity, which is the client UUID.</summary>
+    [JsonPropertyName("identity")]
+    public string Identity { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+
+    // These exist so the client does not offer a button that cannot work. They
+    // are not the enforcement: the token carries the same restrictions, so
+    // ignoring them gets the publish rejected by LiveKit itself.
+    [JsonPropertyName("can_speak")]
+    public bool CanSpeak { get; set; }
+
+    [JsonPropertyName("can_publish_video")]
+    public bool CanPublishVideo { get; set; }
+
+    [JsonPropertyName("can_share_screen")]
+    public bool CanShareScreen { get; set; }
+}
+
 public sealed class MediaSetState
 {
     [JsonPropertyName("mic")]
@@ -432,4 +471,20 @@ public sealed class MediaSetState
 
     [JsonPropertyName("screen")]
     public bool Screen { get; set; }
+}
+
+/// <summary>
+/// The broadcast form of the above: somebody's microphone or camera changed.
+/// Leaving a room resets it, so no explicit "off" arrives on the way out.
+/// </summary>
+public sealed class MediaStateEvent
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("state")]
+    public MediaSetState State { get; set; } = new();
 }

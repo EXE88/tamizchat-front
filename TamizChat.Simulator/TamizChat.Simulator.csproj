@@ -12,6 +12,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TamizChat.Core\TamizChat.Core.csproj" />
+
+    <!-- So `tamizsim listen` can actually play what it hears. -->
+    <ProjectReference Include="..\TamizChat.Audio\TamizChat.Audio.csproj" />
   </ItemGroup>
 
 </Project>

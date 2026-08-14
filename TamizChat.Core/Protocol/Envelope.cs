@@ -62,6 +62,7 @@ public static class MessageTypes
     public const string PaintClear = "paint.clear";
     public const string PaintState = "paint.state";
 
+    public const string MediaToken = "media.token";
     public const string MediaSetState = "media.set_state";
     public const string MediaState = "media.state";
 

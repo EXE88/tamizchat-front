@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Windows sound devices, kept out of both the UI and the protocol client.
+
+    It is referenced by the WinUI app and by the console simulator, which is why
+    it is a plain net10.0 library rather than a Windows-targeted one: NAudio
+    ships a netstandard2.0 asset that resolves for either. It only ever runs on
+    Windows — the point of the split is that TamizChat.Core stays free of any
+    device dependency, not that this one is portable.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>TamizChat.Audio</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio.Wasapi" Version="2.3.0" />
+    <ProjectReference Include="..\TamizChat.Core\TamizChat.Core.csproj" />
+  </ItemGroup>
+
+</Project>

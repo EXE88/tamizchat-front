@@ -164,14 +164,51 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Toggles and menus do not navigate. Their state is held by the bar; the
-    /// wiring to the microphone, camera and effects arrives with the media phases.
+    /// Toggles and menus do not navigate — they act. The bar owns the microphone,
+    /// speaker, camera and screen; nothing else in the app offers those controls.
     /// </summary>
     private void OnNavStateChanged(object? sender, NavBarStateEventArgs e)
     {
         LastStateChange = e.Item.Kind == NavItemKind.Menu
             ? $"{e.Item.Key}={e.Option}"
             : $"{e.Item.Key}={(e.IsOn ? "on" : "off")}";
+
+        switch (e.Item.Key)
+        {
+            case "mic":
+                _ = SafelyAsync(() => VoiceService.Instance.SetMutedAsync(!e.IsOn));
+                break;
+
+            case "speaker":
+                VoiceService.Instance.SetDeafened(!e.IsOn);
+                break;
+
+            case "camera":
+                _ = SafelyAsync(() => VoiceService.Instance.SetCameraAsync(e.IsOn));
+                break;
+
+            case "screen":
+                _ = SafelyAsync(() => VoiceService.Instance.SetScreenShareAsync(e.IsOn));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Runs a media toggle without letting a failure reach the dispatcher.
+    ///
+    /// A camera that refuses to open must leave the app standing; the toggle
+    /// simply goes back to reflecting what is actually happening.
+    /// </summary>
+    private static async Task SafelyAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception)
+        {
+            // The service already reports its real state through Changed.
+        }
     }
 
     /// <summary>Recorded so the self-test can prove the toggles and menus fire.</summary>

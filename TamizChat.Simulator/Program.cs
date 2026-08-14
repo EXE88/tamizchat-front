@@ -1,4 +1,6 @@
 using TamizChat.Core;
+using TamizChat.Audio;
+using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
 
 // A fake user, so the client can be tested with more than one person in a room.
@@ -7,6 +9,9 @@ using TamizChat.Core.Protocol;
 //   tamizsim run   [name] [room]       stay connected and behave like somebody who is there
 //   tamizsim paint [name] [room]       draw one streamed stroke on the room's board
 //   tamizsim file  [name] [room]       upload a small file into the room
+//   tamizsim talk  [name] [room]       join the room's voice and publish a tone
+//   tamizsim listen [name] [room]      join the voice and PLAY what arrives, to test your mic
+//   tamizsim video [name] [room]       publish a moving test pattern, to test video with no webcam
 //
 // Both take the server address from TAMIZSIM_SERVER, defaulting to localhost:8080.
 
@@ -66,6 +71,165 @@ if (mode == "check")
     await client.SendAsync(MessageTypes.ChatSend, new ChatSend { Text = "hello from the simulator" });
     await Task.Delay(500);
     Console.WriteLine("check OK");
+    return 0;
+}
+
+if (mode is "talk" or "listen" or "video")
+{
+    // Voice, through the same MediaSession the app uses. `talk` is a fake
+    // speaker to test the client against; `listen` proves audio really arrives,
+    // which is not the same thing as the connection being up.
+    var credentials = TamizChatClient.Deserialize<MediaToken>(
+        await client.RequestAsync(MessageTypes.MediaToken));
+
+    if (credentials is null || string.IsNullOrEmpty(credentials.Token))
+    {
+        Console.Error.WriteLine("no media token — is livekit.enabled on, and configured?");
+        return 1;
+    }
+
+    Console.WriteLine($"media    {credentials.Url} room={credentials.Room} speak={credentials.CanSpeak}");
+
+    await using var media = new MediaSession();
+    var received = 0;
+
+    // `listen` plays what it hears out of the speakers, which is how you test
+    // your own microphone: talk in the app and hear yourself come back through
+    // the round trip. Beware the obvious — this is a real loop, so use a headset
+    // or the two will howl at each other.
+    using var speakers = new SpeakerPlayback();
+    if (mode == "listen")
+    {
+        speakers.Start();
+        Console.WriteLine("audio    playing what arrives through the default speakers");
+    }
+
+    media.FrameReceived += (_, frame) =>
+    {
+        if (mode == "listen")
+        {
+            speakers.Submit(frame.Identity, frame.Pcm);
+        }
+
+        // Only the first of each burst is worth a line; this is 100 a second.
+        if (received++ % 100 == 0)
+        {
+            Console.WriteLine($"audio    {received} frames, latest from {frame.Identity}");
+        }
+    };
+
+    var videoFrames = 0;
+    media.VideoFrameReceived += (_, frame) =>
+    {
+        if (videoFrames++ % 60 == 0)
+        {
+            Console.WriteLine($"video    {videoFrames} frames, {frame.Width}x{frame.Height} " +
+                              $"{frame.Kind} from {frame.Identity}");
+        }
+    };
+
+    media.SpeakersChanged += (_, talking) =>
+        Console.WriteLine($"speaking {(talking.Count == 0 ? "(nobody)" : string.Join(", ", talking))}");
+
+    await media.ConnectAsync(credentials);
+    Console.WriteLine("media    connected");
+
+    var seconds = int.TryParse(Environment.GetEnvironmentVariable("TAMIZSIM_SECONDS"), out var s) ? s : 30;
+
+    if (mode == "video")
+    {
+        // A moving test pattern instead of a camera: it proves the whole video
+        // path — publish, encode, decode, render — on a machine with no webcam,
+        // and a moving picture is the only way to tell a live feed from a frozen
+        // one at a glance.
+        const int width = 640;
+        const int height = 360;
+
+        await media.StartVideoAsync(VideoKind.Camera, width, height);
+        Console.WriteLine($"video    publishing a {width}x{height} test pattern for {seconds}s");
+
+        var pixels = new byte[width * height * 4];
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+        var frameNumber = 0;
+
+        while (DateTime.UtcNow < until)
+        {
+            // Colour bars that slide sideways, plus a bright block that marches
+            // across so a frozen frame is obvious.
+            var offset = frameNumber * 4 % width;
+
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    var i = ((y * width) + x) * 4;
+                    var band = ((x + offset) % width) * 6 / width;
+
+                    pixels[i + 0] = (byte)((band & 1) != 0 ? 220 : 30); // blue
+                    pixels[i + 1] = (byte)((band & 2) != 0 ? 220 : 30); // green
+                    pixels[i + 2] = (byte)((band & 4) != 0 ? 220 : 30); // red
+                    pixels[i + 3] = 255;
+                }
+            }
+
+            var blockX = offset;
+            for (var y = height / 2; y < (height / 2) + 40; y++)
+            {
+                for (var x = blockX; x < blockX + 40 && x < width; x++)
+                {
+                    var i = ((y * width) + x) * 4;
+                    pixels[i + 0] = 255;
+                    pixels[i + 1] = 255;
+                    pixels[i + 2] = 255;
+                }
+            }
+
+            media.SendVideoFrame(VideoKind.Camera, pixels, width, height);
+            frameNumber++;
+            await Task.Delay(66); // about 15 a second
+        }
+
+        Console.WriteLine($"video    sent {frameNumber} frames");
+        return 0;
+    }
+
+    if (mode == "talk")
+    {
+        await media.StartPublishingAsync();
+        media.SetMuted(false);
+        await client.SendAsync(MessageTypes.MediaSetState, new MediaSetState { Mic = true });
+        Console.WriteLine($"media    publishing a 440 Hz tone for {seconds}s");
+
+        // 10 ms at a time, paced in real time, because LiveKit's queue is not a
+        // place to dump a minute of audio at once.
+        var phase = 0.0;
+        var frame = new short[MediaSession.SamplesPer10Ms];
+        var until = DateTime.UtcNow.AddSeconds(seconds);
+
+        while (DateTime.UtcNow < until)
+        {
+            for (var i = 0; i < frame.Length; i++)
+            {
+                frame[i] = (short)(Math.Sin(phase) * 8000);
+                phase += 2 * Math.PI * 440 / MediaSession.SampleRate;
+                if (phase > 2 * Math.PI)
+                {
+                    phase -= 2 * Math.PI;
+                }
+            }
+
+            media.SendCapturedFrame(frame);
+            await Task.Delay(10);
+        }
+    }
+    else
+    {
+        Console.WriteLine($"media    listening for {seconds}s");
+        await Task.Delay(TimeSpan.FromSeconds(seconds));
+        Console.WriteLine($"media    received {received} audio frames, {videoFrames} video frames");
+        return received > 0 || videoFrames > 0 ? 0 : 1;
+    }
+
     return 0;
 }
 

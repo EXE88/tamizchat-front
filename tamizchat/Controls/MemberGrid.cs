@@ -2,7 +2,10 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
+using Windows.Graphics.Imaging;
 
 namespace TamizChat.Controls;
 
@@ -47,6 +50,40 @@ public sealed class MemberGrid : Grid
         }
 
         Arrange();
+    }
+
+    /// <summary>
+    /// Rings whoever is talking.
+    ///
+    /// The identities come from LiveKit, which uses the client UUID, so they
+    /// match the cell keys without any translation.
+    /// </summary>
+    public void SetSpeaking(IReadOnlyList<string> identities)
+    {
+        foreach (var (uuid, cell) in _cells)
+        {
+            cell.SetSpeaking(identities.Contains(uuid));
+        }
+    }
+
+    /// <summary>
+    /// Routes a video frame to whoever sent it. Frames for people in other rooms
+    /// simply find no cell here, which is the right outcome.
+    /// </summary>
+    public void SetVideoFrame(RemoteVideoFrame frame)
+    {
+        if (_cells.TryGetValue(frame.Identity, out var cell))
+        {
+            cell.SetVideoFrame(frame);
+        }
+    }
+
+    public void ClearVideo(string identity, VideoKind kind)
+    {
+        if (_cells.TryGetValue(identity, out var cell))
+        {
+            cell.ClearVideo(kind);
+        }
     }
 
     /// <summary>
@@ -99,7 +136,11 @@ internal sealed class MemberCell : Grid
     private readonly AvatarView _avatar;
     private readonly TextBlock _name;
     private readonly StackPanel _stack;
+    private readonly Image _video;
+    private readonly SoftwareBitmapSource _videoSource = new();
     private User _member;
+    private VideoKind? _videoKind;
+    private bool _videoBusy;
 
     public MemberCell(User member)
     {
@@ -133,6 +174,17 @@ internal sealed class MemberCell : Grid
         _stack.Children.Add(_avatar);
         _stack.Children.Add(_name);
 
+        // Sits behind the avatar stack and takes over when video arrives. Uniform
+        // keeps the aspect ratio: a stretched face and a stretched screen are
+        // both immediately wrong to look at.
+        _video = new Image
+        {
+            Source = _videoSource,
+            Stretch = Stretch.Uniform,
+            Visibility = Visibility.Collapsed,
+        };
+
+        Children.Add(_video);
         Children.Add(_stack);
         Update(member);
     }
@@ -142,6 +194,80 @@ internal sealed class MemberCell : Grid
         _member = member;
         _name.Text = member.Username;
         _avatar.SetMuted(member.Muted);
+    }
+
+    public void SetSpeaking(bool speaking) => _avatar.IsSpeaking = speaking;
+
+    /// <summary>
+    /// Shows a frame of this person's camera or screen in place of their avatar.
+    ///
+    /// Frames are dropped while a previous one is still being handed to XAML.
+    /// The alternative — queueing them — builds a backlog the moment the UI
+    /// thread is busy, and stale video is worse than fewer frames.
+    /// </summary>
+    public void SetVideoFrame(RemoteVideoFrame frame)
+    {
+        if (_videoBusy || frame.Width <= 0 || frame.Height <= 0)
+        {
+            return;
+        }
+
+        // Screen share wins over the camera: someone sharing their screen is
+        // showing it for a reason.
+        if (_videoKind == VideoKind.Screen && frame.Kind == VideoKind.Camera)
+        {
+            return;
+        }
+
+        _videoKind = frame.Kind;
+        _videoBusy = true;
+
+        _ = ShowAsync(frame);
+    }
+
+    /// <summary>Drops back to the avatar when a track stops.</summary>
+    public void ClearVideo(VideoKind kind)
+    {
+        if (_videoKind != kind)
+        {
+            return;
+        }
+
+        _videoKind = null;
+        _video.Visibility = Visibility.Collapsed;
+        _stack.Visibility = Visibility.Visible;
+    }
+
+    private async Task ShowAsync(RemoteVideoFrame frame)
+    {
+        try
+        {
+            var writer = new Windows.Storage.Streams.DataWriter();
+            writer.WriteBytes(frame.Bgra);
+
+            using var bitmap = SoftwareBitmap.CreateCopyFromBuffer(
+                writer.DetachBuffer(),
+                BitmapPixelFormat.Bgra8,
+                frame.Width,
+                frame.Height,
+
+                // XAML will only display premultiplied alpha; a straight-alpha
+                // bitmap throws rather than looking wrong.
+                BitmapAlphaMode.Premultiplied);
+
+            await _videoSource.SetBitmapAsync(bitmap);
+
+            _video.Visibility = Visibility.Visible;
+            _stack.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception)
+        {
+            // A frame arriving as the cell is torn down is not worth reporting.
+        }
+        finally
+        {
+            _videoBusy = false;
+        }
     }
 
     /// <summary>

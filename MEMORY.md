@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — phases F0 to F7 done
+Last updated: 2026-08-14 — F0 to F7 and F9 done
 
 ---
 
@@ -37,6 +37,8 @@ badly in terminals and breaks column alignment.
 | Assembly / namespace | `TamizChat` (the csproj file itself is still `tamizchat.csproj`) |
 | Languages | English (default) and Persian, with RTL flow direction on Persian |
 | Voice changer / soundboard | In-process DSP on our own capture path. **No virtual audio driver.** See below |
+| LiveKit client | `Livekit.Rtc.Dotnet` 0.1.3 — the official Rust FFI, referenced from Core |
+| Audio devices | `NAudio.Wasapi` 2.3.0, **not** the `NAudio` meta-package (it drags in WinForms) |
 
 ### Themes
 
@@ -133,7 +135,25 @@ room switched to the focused view with a "Show all rooms" way back.
 **Phase F7 (chat, files, paint board) — done.** All three verified against the
 real backend with simulated users.
 
-Remaining phases are tracked as tasks: F8 localization, F9 LiveKit media, F10
+**Phase F9 (voice, camera, screen) — done and verified end to end.** Measured
+against the real backend and a real LiveKit:
+
+| Path | Evidence |
+|------|----------|
+| Receive audio | Halo on the speaker's avatar; 1399 frames in 14 s at `tamizsim listen` |
+| **Send audio (microphone)** | 1999 frames in 20 s from the app — exactly 100/s |
+| Receive video | Test pattern rendered in the sender's cell, aspect preserved |
+| **Send video (screen)** | `1280x720 Screen` arriving from the app at a subscriber |
+
+The microphone is no longer the untested half: the app captures from a real
+headset and publishes at exactly the expected rate.
+
+Camera capture is written but **never run against hardware** — this machine has
+no webcam. Everything downstream of it is proven by the test pattern, which goes
+through the identical publish path, so what is unverified is `CameraCapture`
+itself: device enumeration, format selection and the BGRA copy.
+
+Remaining phases are tracked as tasks: F8 localization, F10
 audio effects, F11 installer.
 
 ### Chat
@@ -266,6 +286,7 @@ a PowerShell argument value must not be `-`; it gets parsed as a parameter name.
 |---------|------------|
 | `tamizchat/` | The WinUI 3 app. Unpackaged, net10, x64 |
 | `TamizChat.Core/` | Protocol client and server probe. **No Windows dependency**, so the simulator can use it |
+| `TamizChat.Audio/` | WASAPI capture and playback. Shared by the app and the simulator |
 | `TamizChat.Simulator/` | Console fake user (`tamizsim`) |
 
 ### The protocol client
@@ -298,6 +319,26 @@ tamizsim paint Painter Lobby
 ```bash
 tamizsim file Uploader Lobby
 ```
+
+```bash
+tamizsim talk Talker Lobby
+```
+
+```bash
+tamizsim listen Listener Lobby
+```
+
+```bash
+tamizsim video Talker Lobby
+```
+
+`talk` joins the room's voice and publishes a 440 Hz tone. `listen` **plays what
+arrives out of the speakers**, which is how a real microphone gets tested — talk
+in the app and hear yourself come back round the trip; use a headset, or the two
+ends will howl at each other. `video` publishes a moving colour-bar pattern, so
+the whole video path can be tested on a machine with no webcam — and because it
+moves, a frozen feed is obvious at a glance. All take `TAMIZSIM_SECONDS` and need
+the dev LiveKit running.
 
 `check` connects once, prints what the server said and exits — the quickest way
 to tell whether the backend and the client still agree. `run` stays connected as
@@ -391,7 +432,11 @@ the Windows system accent (blue) and ignores the chosen theme entirely.
 - The screenshot script must call `SetProcessDPIAware()` and force the window
   topmost with `SetWindowPos`, or it captures the wrong screen region and
   whatever window happens to be in front. The script lives in the scratchpad as
-  `shot.ps1`.
+  `shot.ps1`. It must match the **process name** (`TamizChat`), not the window
+  title: Visual Studio's title contains the solution name and wins a title
+  search, which produces a very convincing screenshot of the wrong application.
+  Give the window a moment to settle after raising it, or the capture catches it
+  mid-restore and saves a sliver.
 
 ## Running the dev backend
 
@@ -421,6 +466,43 @@ docker compose -f deploy/docker-compose.dev.yml exec backend tamizchat
 
 The server listens on `http://localhost:8080`; the client connects to
 `ws://localhost:8080/ws`.
+
+### Running the dev LiveKit (media phases only)
+
+LiveKit used to be absent from the dev stack because the production compose runs
+it with host networking, which Docker Desktop on Windows does not have. It now
+has its own loopback-only file, separate from the backend's because it is only
+needed for the media phases:
+
+```bash
+docker compose -f deploy/docker-compose.livekit.dev.yml up -d
+```
+
+Three things make it work on Windows, and all three are load-bearing:
+
+- **`use_external_ip: false` with `node_ip: 127.0.0.1`.** Left at `true`, LiveKit
+  discovers the container's `172.x` bridge address and advertises it in ICE.
+  Signalling then succeeds and no audio ever arrives, which looks like a client
+  bug and is not one.
+- **One UDP port (`udp_port: 7882`)** instead of a range, because Docker has to
+  publish each one.
+- **`livekit.url` must be `ws://host.docker.internal:7880`, not `127.0.0.1`.**
+  TamizChat has a single URL setting and derives the LiveKit *server API* address
+  from it, so one name has to work from two places: the client on the host, and
+  the backend inside its container, where `127.0.0.1` is the backend itself. The
+  ports are therefore published on all interfaces rather than pinned to loopback.
+  ICE still runs over loopback, so media never leaves the machine.
+
+**Proxy trap.** This machine has an HTTP proxy whose no-proxy list covers
+`127.0.0.1` but not `host.docker.internal` (a `10.x` address), so `curl` returns
+a bare `503` with `Proxy-Connection: close` and it reads exactly like LiveKit
+being down. `curl --noproxy '*'` is the check. Windows' own `ProxyOverride`
+includes `10.*`, so the app is unaffected — but a shell with `HTTP_PROXY` set
+will break the spike, which is why it is run with `NO_PROXY` extended.
+
+**Credentials** are in `deploy/livekit.dev.yaml` and already entered in the dev
+backend's panel (`livekit.url` / `api_key` / `api_secret` / `enabled`). They are
+dev-only and must never reach a real server.
 
 **Seeded state:** `network.public_host = http://localhost:8080`, and five rooms
 (Lobby, Gaming, Music, Study, AFK) — five on purpose, so the room grid's
@@ -460,17 +542,161 @@ The one thing this does not give us is using the voice changer *in other apps*
 (Discord, games). If that is ever wanted, it needs a virtual device and a
 licensing conversation with VB-Audio — a separate decision.
 
+## Media: the F9 decision (settled 2026-08-14)
+
+**`Livekit.Rtc.Dotnet` 0.1.3 is the client.** Measured, not guessed — the spike
+connected two participants to the dev LiveKit through tokens issued by our own
+backend, published a tone from one and received **1215 audio frames /
+1,166,400 bytes of PCM** on the other in 12 seconds. Connect took 260–470 ms.
+
+The three candidates turned out to be two, not three:
+
+- The package **is** the LiveKit Rust FFI. It ships the official
+  `livekit_ffi` binary from `livekit/rust-sdks` for win-x64, win-arm64, linux
+  and macOS, and drives it over the same generated protobuf protocol the Unity
+  and Flutter SDKs use. "Use the package" and "call the Rust FFI ourselves" are
+  therefore the same decision, minus the work.
+- Its author also maintains `Livekit.Server.Sdk.Dotnet`, the .NET server SDK
+  LiveKit's own documentation points at. The 0.1.x version number reflects the
+  package's age, not a hobby project.
+- The **WebView2 bridge is not needed** and should not be revisited: it would put
+  a browser between our capture path and the network, which is exactly what the
+  no-virtual-audio-driver decision was meant to avoid.
+
+### Why it fits the voice changer decision so well
+
+The SDK does **no device I/O at all**. Publishing is
+`AudioSource.CaptureFrameAsync(new AudioFrame(short[], 48000, 1, 480))`, and
+receiving is an `AudioStream` of the same frames. That is precisely the seam the
+in-process DSP needs:
+
+```
+WASAPI capture -> voice changer + soundboard mix -> AudioSource -> LiveKit
+LiveKit -> AudioStream -> our mixer -> WASAPI render
+```
+
+So capture and playback are **ours to write** (F10 territory): the SDK will not
+open a microphone for us. 10 ms of 48 kHz mono is 480 samples, which is the
+frame size to build the whole pipeline around.
+
+### How the voice path is put together
+
+| Piece | Where | What it owns |
+|-------|-------|--------------|
+| `MediaSession` | `TamizChat.Core/Media` | The LiveKit room. **No Windows dependency**, so the simulator can talk |
+| `MicrophoneCapture` | `TamizChat.Audio` | WASAPI in, converted to 48 kHz mono 10 ms frames |
+| `SpeakerPlayback` | `TamizChat.Audio` | Per-speaker jitter buffers, summed, converted to the device's format |
+| `AudioFormat` | `TamizChat.Audio` | Downmix, linear resample, float↔PCM16 |
+| `CameraCapture` | `tamizchat/Video` | WinRT MediaCapture, BGRA frames |
+| `ScreenCapture` | `tamizchat/Video` | GDI BitBlt of the primary monitor into a DIB section |
+| `VoiceService` | `tamizchat/Services` | Ties them together; mirrors `ServerSession`'s shape |
+
+`TamizChat.Audio` is a **fourth project**, split out of the app so the simulator
+can play sound too. It is plain `net10.0` rather than Windows-targeted because
+NAudio ships a netstandard2.0 asset that both the app and the console tool can
+resolve. Video capture stayed in the app: it needs WinRT, which needs the
+Windows TFM.
+
+### Controls live on the bottom bar, nowhere else
+
+Mic, Speaker, Camera and Screen are toggles in `ShellItems.InServer`, wired in
+`MainWindow.OnNavStateChanged`. A duplicate Mute button on the room page was
+built and then removed — **do not reintroduce a second control surface for
+these.** The bar is the one place that owns them.
+
+- **Mic is live on joining**, because the bar declares it on by default and the
+  two must not disagree; an icon claiming you are live while you are not is
+  worse than either state.
+- **Speaker is deafen, not unsubscribe.** It stops playback and leaves the
+  LiveKit subscription alone, so undeafening is instant instead of a
+  renegotiation.
+- Camera and screen are off by default and gated on `can_publish_video` /
+  `can_share_screen` from the token.
+- `TAMIZCHAT_AUTOSHARE=screen|camera` turns one on at startup, which is how the
+  publishing side is tested without clicking.
+
+Decisions worth keeping:
+
+- **The DSP seam is `MicrophoneCapture.Process`**, a `Func<float[], float[]>` on
+  mono 48 kHz floats. F10's voice changer and soundboard go there, and nothing in
+  the pipeline has to move to accommodate them.
+- Conversions are written by hand rather than delegated to a resampler object,
+  for the same reason: a conversion buried inside somebody else's stream is not
+  somewhere effects can be inserted.
+- **The resampler's fractional position must persist between buffers.** Resetting
+  it each callback puts a discontinuity at every buffer boundary, which is a
+  steady buzz at the buffer rate, not something anyone would recognise as a
+  resampling bug.
+- **`Read` on the playback provider always returns a full buffer.** Returning
+  less tells NAudio the stream ended and playback stops permanently; silence is
+  the right output when nobody is talking.
+- Per-speaker buffers are capped at half a second and **drop the oldest** rather
+  than growing. A buffer that only grows converts one hiccup into permanent lag.
+- The mic track is published on first unmute and then kept; muting stops sending
+  frames. Publishing is a round trip, and doing it per toggle clips the first
+  word.
+- Voice joins the room automatically but **starts muted with the microphone
+  closed**. Entering a room must never begin broadcasting it.
+- `tamizsim talk` and `tamizsim listen` are the test tools: `talk` is a fake
+  speaker to develop the client against, `listen` returns non-zero if no audio
+  arrived. Measured 1399 frames in 14 s, which is exactly the expected 100/s.
+
+### Things the spike established that are easy to get wrong
+
+- `LiveKit.Rtc.Room` and our `TamizChat.Core.Protocol.Room` collide. Alias one at
+  every use site; they mean genuinely different things (a media session versus a
+  room definition).
+- `ParticipantConnected`/`Disconnected` hand over the `Participant` itself, while
+  `TrackSubscribed` hands over an event-args object with `.Participant`. Not
+  consistent, and the compiler is the only thing that tells you.
+- `paint.end`-style asymmetry has an equivalent here: **`AudioStream` must be
+  drained** (`await foreach`) or nothing arrives. Subscribing is not receiving.
+- The LiveKit room name really is the TamizChat `room_id`, confirmed on the wire.
+- Active speaker events arrive from LiveKit as promised, so the room grid's
+  "who is talking" halo needs nothing from our own server.
+
+### Video, and the one number that is not good enough
+
+- Frames cross as **BGRA** and LiveKit converts. Both Windows capture APIs
+  produce BGRA naturally, so nothing hand-unpacks NV12 or MJPEG.
+- **A video track must be drained like an audio one.** `VideoStream` behaves
+  exactly like `AudioStream`: subscribing is not receiving.
+- Camera and screen are told apart by the **publication's source**, not by the
+  track, and screen wins over camera in a cell — someone sharing a screen is
+  showing it for a reason.
+- Screen tracks publish with **simulcast off**: LiveKit dropping resolution on a
+  camera is graceful, on a spreadsheet it is unreadable.
+- Frames are **dropped while the previous one is still being handed to XAML**.
+  Queueing builds a backlog the moment the UI thread is busy, and stale video is
+  worse than fewer frames.
+- Odd dimensions are cropped away before publishing; chroma subsampling needs
+  even ones.
+
+**Open question — screen share runs at about 5 frames a second.** Measured at a
+subscriber: 103 video frames in 20 s while audio in the same session was exactly
+100/s, so the connection is fine and something in the video path is the limit.
+Removing `CAPTUREBLT` moved it from 4.3 to 5.2, so the BitBlt flag is *not* the
+main cost. The prime suspect is `RoomOptions.AdaptiveStream`, which throttles for
+a subscriber that never signals it is rendering — the measuring tool is a console
+app, so this may be largely an artefact of how it was measured rather than what a
+real viewer sees. Confirm by measuring at the app before optimising the capture.
+
+`ScreenCapture` is GDI on purpose: `Windows.Graphics.Capture` is the better API
+(hardware accelerated, single-window) but returns Direct3D surfaces, so it needs
+a D3D11 device and a staging copy before LiveKit sees a byte. The output shape is
+identical either way, so swapping it is contained to that one class.
+
 ## Known risks
 
-- **LiveKit client for .NET is the biggest open risk.** There is no first-party
-  .NET client SDK. The candidates are `Livekit.Rtc.Dotnet` (version 0.1.3, very
-  young), calling the LiveKit Rust FFI directly the way the Unity and Flutter
-  SDKs do, or a WebView2 bridge running the JS SDK. This is investigated at the
-  start of phase F9 and not before; everything except voice/video runs over our
-  own WebSocket and is unaffected.
-- LiveKit needs host networking for its ICE candidates, which Docker Desktop on
-  Windows does not provide properly, so LiveKit is deliberately not in the dev
-  compose stack.
+- **Camera capture has never met a camera.** Everything downstream of it is
+  proven, but `CameraCapture` itself needs a real webcam to verify.
+- Screen share is about 5 frames a second at a console subscriber; see the open
+  question above before treating that as the real figure.
+- `Livekit.Rtc.Dotnet` is young and has one maintainer. The mitigation is that it
+  is a thin binding over LiveKit's own FFI, so a stall there is recoverable by
+  building the same binding ourselves against a newer `livekit-ffi` release.
+- The native binary is ~24 MB per architecture, which the F11 installer has to
+  account for.
 
 ## Working rules
 
