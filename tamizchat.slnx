@@ -10,4 +10,6 @@
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
+  <Project Path="TamizChat.Core/TamizChat.Core.csproj" />
+  <Project Path="TamizChat.Simulator/TamizChat.Simulator.csproj" />
 </Solution>

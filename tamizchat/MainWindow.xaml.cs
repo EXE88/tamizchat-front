@@ -1,43 +1,237 @@
 using System.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+using TamizChat.Navigation;
+using TamizChat.Pages;
 using TamizChat.Services;
 using TamizChat.Theming;
 
 namespace TamizChat;
 
+/// <summary>
+/// The shell: the title bar, the content frame and the floating bottom bar.
+/// It owns which item set the bar shows and which transition each move uses.
+/// </summary>
 public sealed partial class MainWindow : Window
 {
-    private bool _loading = true;
+    /// <summary>
+    /// The item whose page is on screen. Tracked by key rather than derived from
+    /// the page type, because several items can lead to the same page and the
+    /// key is the only thing that stays unique.
+    /// </summary>
+    private string _selectedKey = "home";
 
     public MainWindow()
     {
         InitializeComponent();
 
-        // The content is drawn all the way up through the title bar, and this
-        // strip is what the user can still drag the window by.
+        // The content is drawn all the way up through the title bar; this strip
+        // is what the window can still be dragged by.
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var appWindow = AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle));
         appWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
-        SizeAndCentre(appWindow, handle, 1100, 760);
+        SizeAndCentre(appWindow, handle, 1180, 780);
 
         ThemeManager.Instance.Initialize(this);
+        ServerStore.Load();
 
-        ThemeBox.SelectedIndex = (int)ThemeManager.Instance.Family;
-        ModeBox.SelectedIndex = (int)ThemeManager.Instance.Mode;
-        BackdropBox.SelectedIndex = (int)ThemeManager.Instance.Backdrop;
-        _loading = false;
+        NavigationService.Instance.Initialize(ContentFrame);
+        NavigationService.Instance.Navigated += (_, _) => SyncShell();
+        NavBar.ItemInvoked += OnNavItemInvoked;
+        NavBar.StateChanged += OnNavStateChanged;
 
-        ShowStatus();
+        NavigationService.Instance.Navigate(typeof(HomePage), NavTransition.None);
+
+        // Lets a script open the app straight onto a page, which is how states
+        // other than Home get screenshotted without driving the UI.
+        switch (Environment.GetEnvironmentVariable("TAMIZCHAT_START_PAGE"))
+        {
+            case "server":
+                EnterServer();
+                break;
+
+            case "servers":
+                OnNavItemInvoked(null, ShellItems.PreServer.First(i => i.Key == "servers"));
+                break;
+
+            case "settings":
+                OnNavItemInvoked(null, ShellItems.PreServer.First(i => i.Key == "settings"));
+                break;
+        }
+
+        // Connects to the first saved server and goes straight in, so the room
+        // grid can be exercised from a script.
+        if (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOJOIN") is { } room)
+        {
+            _ = AutoJoinAsync(room);
+        }
 
         if (Environment.GetEnvironmentVariable("TAMIZCHAT_SELFTEST") == "1")
         {
             RunSelfTest();
         }
+    }
+
+    private async Task AutoJoinAsync(string room)
+    {
+        try
+        {
+            await AutoJoinCoreAsync(room);
+        }
+        catch (Exception ex)
+        {
+            // Fire-and-forget would otherwise swallow this silently.
+            File.WriteAllText(
+                Path.Combine(AppContext.BaseDirectory, "autojoin-error.txt"),
+                $"{ex.GetType().Name}: {ex}");
+        }
+    }
+
+    private async Task AutoJoinCoreAsync(string room)
+    {
+        var server = ServerStore.Servers.FirstOrDefault();
+        if (server is null)
+        {
+            return;
+        }
+
+        await ServerSession.Instance.ConnectAsync(server);
+
+        // "none" means connect but stay out of every room, which is how the full
+        // grid gets captured.
+        if (room is not ("" or "none"))
+        {
+            var target = ServerSession.Instance.Rooms
+                .FirstOrDefault(r => string.Equals(r.Name, room, StringComparison.OrdinalIgnoreCase));
+            if (target is not null)
+            {
+                await ServerSession.Instance.JoinRoomAsync(target.Id);
+            }
+        }
+
+        EnterServer();
+    }
+
+    /// <summary>Drills into a server. The only move that uses a drill going in.</summary>
+    public void EnterServer()
+    {
+        _selectedKey = "room";
+        NavigationService.Instance.Navigate(typeof(ServerPage), NavTransition.DrillIn);
+    }
+
+    /// <summary>
+    /// Decides how a requested move should be animated.
+    ///
+    /// Both item sets slide within themselves, by the target's position relative
+    /// to the current one. A drill is reserved for crossing between the two:
+    /// going into a server and coming back out. That way the drill always means
+    /// "a level changed" and never just "a different page".
+    /// </summary>
+    private void OnNavItemInvoked(object? sender, NavBarItem item)
+    {
+        if (item.Key == "disconnect")
+        {
+            Disconnect();
+            return;
+        }
+
+        if (item.Kind != NavItemKind.Navigate || item.Page is null || item.Key == _selectedKey)
+        {
+            return;
+        }
+
+        var set = ShellItems.IsInServer(NavigationService.Instance.CurrentPageType)
+            ? ShellItems.InServer
+            : ShellItems.PreServer;
+
+        var from = IndexOfKey(set, _selectedKey);
+        var to = IndexOfKey(set, item.Key);
+        var transition = from >= 0 && to >= 0
+            ? NavigationService.SlideTowards(from, to)
+            : NavTransition.None;
+
+        _selectedKey = item.Key;
+        NavigationService.Instance.Navigate(item.Page, transition);
+    }
+
+    /// <summary>
+    /// Toggles and menus do not navigate. Their state is held by the bar; the
+    /// wiring to the microphone, camera and effects arrives with the media phases.
+    /// </summary>
+    private void OnNavStateChanged(object? sender, NavBarStateEventArgs e)
+    {
+        LastStateChange = e.Item.Kind == NavItemKind.Menu
+            ? $"{e.Item.Key}={e.Option}"
+            : $"{e.Item.Key}={(e.IsOn ? "on" : "off")}";
+    }
+
+    /// <summary>Recorded so the self-test can prove the toggles and menus fire.</summary>
+    internal string LastStateChange { get; private set; } = "";
+
+    private async void Disconnect()
+    {
+        // Close the socket as well as leaving the pages, or the server would keep
+        // showing this user as present in a room nobody is looking at.
+        await ServerSession.Instance.DisconnectAsync();
+
+        // Unwind every page that belongs to the server, so leaving from chat or
+        // paint lands back outside rather than on the room.
+        while (NavigationService.Instance.CanGoBack
+               && ShellItems.IsInServer(NavigationService.Instance.CurrentPageType))
+        {
+            NavigationService.Instance.GoBack();
+        }
+
+        _selectedKey = KeyForPage(ShellItems.PreServer, NavigationService.Instance.CurrentPageType) ?? "home";
+    }
+
+    private void OnBackClick(object sender, RoutedEventArgs e)
+    {
+        NavigationService.Instance.GoBack();
+
+        var set = ShellItems.IsInServer(NavigationService.Instance.CurrentPageType)
+            ? ShellItems.InServer
+            : ShellItems.PreServer;
+        _selectedKey = KeyForPage(set, NavigationService.Instance.CurrentPageType) ?? _selectedKey;
+    }
+
+    /// <summary>Brings the bar and the back button in line with the current page.</summary>
+    private void SyncShell()
+    {
+        var current = NavigationService.Instance.CurrentPageType;
+        var inServer = ShellItems.IsInServer(current);
+        var items = inServer ? ShellItems.InServer : ShellItems.PreServer;
+
+        // Keep the selection honest if we arrived by any route other than the bar.
+        if (KeyForPage(items, current) is { } key && IndexOfKey(items, _selectedKey) < 0)
+        {
+            _selectedKey = key;
+        }
+
+        NavBar.SetItems(items, _selectedKey);
+        BackButton.Visibility = NavigationService.Instance.CanGoBack
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        TitleText.Text = inServer ? "TamizChat — Development server" : "TamizChat";
+    }
+
+    private static string? KeyForPage(IReadOnlyList<NavBarItem> items, Type? page) =>
+        items.FirstOrDefault(i => i.Page == page)?.Key;
+
+    private static int IndexOfKey(IReadOnlyList<NavBarItem> items, string key)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].Key == key)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -68,95 +262,67 @@ public sealed partial class MainWindow : Window
             area.WorkArea.Y + ((area.WorkArea.Height - size.Height) / 2)));
     }
 
-    private void OnThemeChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loading) return;
-        ThemeManager.Instance.SetFamily((ThemeFamily)ThemeBox.SelectedIndex);
-        ShowStatus();
-    }
-
-    private void OnModeChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loading) return;
-        ThemeManager.Instance.SetMode((AppThemeMode)ModeBox.SelectedIndex);
-        ShowStatus();
-    }
-
-    private void OnBackdropChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loading) return;
-        ThemeManager.Instance.SetBackdrop((AppBackdrop)BackdropBox.SelectedIndex);
-        ShowStatus();
-    }
-
-    private void ShowStatus()
-    {
-        var manager = ThemeManager.Instance;
-        Status.Text =
-            $"{manager.Family} / {(manager.IsDark ? "dark" : "light")} / {manager.Backdrop}\n" +
-            SettingsStore.FilePath;
-    }
-
     /// <summary>
-    /// Walks every theme, mode and backdrop combination and records whether each
-    /// one applied, so the phase can be verified without a person watching the
-    /// window. Triggered by TAMIZCHAT_SELFTEST=1.
+    /// Walks the whole navigation graph and records what the shell ended up
+    /// showing, so the phase can be checked without a person clicking through it.
     /// </summary>
     private void RunSelfTest()
     {
         var log = new StringBuilder();
-        log.AppendLine($"packaged   = {IsPackaged()}");
-        log.AppendLine($"settings   = {SettingsStore.FilePath}");
-        log.AppendLine($"titlebar   = extended");
 
-        var families = Enum.GetValues<ThemeFamily>();
-        var modes = Enum.GetValues<AppThemeMode>();
-        var backdrops = Enum.GetValues<AppBackdrop>();
-
-        foreach (var family in families)
-        {
-            foreach (var mode in modes)
-            {
-                try
-                {
-                    ThemeManager.Instance.SetFamily(family);
-                    ThemeManager.Instance.SetMode(mode);
-                    var palette = ThemeManager.Instance.Palette;
-                    log.AppendLine(
-                        $"OK    {family,-18} {mode,-6} -> tint {Hex(palette.Tint)} " +
-                        $"text {Hex(palette.TextPrimary)} accent {Hex(palette.Accent)}");
-                }
-                catch (Exception ex)
-                {
-                    log.AppendLine($"FAIL  {family} {mode}: {ex.GetType().Name}: {ex.Message}");
-                }
-            }
-        }
-
-        foreach (var backdrop in backdrops)
+        void Step(string what, Action action)
         {
             try
             {
-                ThemeManager.Instance.SetBackdrop(backdrop);
-                log.AppendLine($"OK    backdrop {backdrop} -> {SystemBackdrop?.GetType().Name ?? "set via DevWinUI"}");
+                action();
+                var current = NavigationService.Instance.CurrentPageType?.Name ?? "none";
+                log.AppendLine(
+                    $"OK    {what,-28} page={current,-12} selected={_selectedKey,-11} " +
+                    $"back={(NavigationService.Instance.CanGoBack ? "yes" : "no")}");
             }
             catch (Exception ex)
             {
-                log.AppendLine($"FAIL  backdrop {backdrop}: {ex.GetType().Name}: {ex.Message}");
+                log.AppendLine($"FAIL  {what}: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
-        // Leave the saved settings as the defaults rather than whatever the
-        // sweep ended on.
-        ThemeManager.Instance.SetFamily(ThemeFamily.SaltAndPepper);
-        ThemeManager.Instance.SetMode(AppThemeMode.System);
-        ThemeManager.Instance.SetBackdrop(AppBackdrop.Glass);
+        NavBarItem Item(IReadOnlyList<NavBarItem> set, string key) => set.First(i => i.Key == key);
 
-        log.AppendLine($"saved      = {File.Exists(SettingsStore.FilePath)}");
-        if (File.Exists(SettingsStore.FilePath))
+        Step("start", () => { });
+        Step("home -> servers", () => OnNavItemInvoked(null, Item(ShellItems.PreServer, "servers")));
+        Step("servers -> settings", () => OnNavItemInvoked(null, Item(ShellItems.PreServer, "settings")));
+        Step("join server (drill)", EnterServer);
+        Step("room -> chat (slide)", () => OnNavItemInvoked(null, Item(ShellItems.InServer, "chat")));
+        Step("chat -> paint (slide)", () => OnNavItemInvoked(null, Item(ShellItems.InServer, "paint")));
+        Step("paint -> room (slide)", () => OnNavItemInvoked(null, Item(ShellItems.InServer, "room")));
+
+        // The bug this replaced: two items sharing a page made the selection stick
+        // to whichever one came first in the list.
+        Step("chat then paint distinct", () =>
         {
-            log.AppendLine(File.ReadAllText(SettingsStore.FilePath));
-        }
+            OnNavItemInvoked(null, Item(ShellItems.InServer, "chat"));
+            if (_selectedKey != "chat") throw new InvalidOperationException("chat did not take the selection");
+            OnNavItemInvoked(null, Item(ShellItems.InServer, "paint"));
+            if (_selectedKey != "paint") throw new InvalidOperationException("paint did not take the selection");
+        });
+
+        Step("mic toggle", () =>
+        {
+            OnNavStateChanged(null, new NavBarStateEventArgs(Item(ShellItems.InServer, "mic"), false, null));
+            if (LastStateChange != "mic=off") throw new InvalidOperationException(LastStateChange);
+        });
+        Step("voice changer menu", () =>
+        {
+            OnNavStateChanged(null, new NavBarStateEventArgs(Item(ShellItems.InServer, "voice"), true, "Robot"));
+            if (LastStateChange != "voice=Robot") throw new InvalidOperationException(LastStateChange);
+        });
+
+        Step("disconnect (drill out)", () => OnNavItemInvoked(null, Item(ShellItems.InServer, "disconnect")));
+
+        log.AppendLine($"pre-server items = {ShellItems.PreServer.Count} " +
+                       $"(home at index {IndexOfKey(ShellItems.PreServer, "home")})");
+        log.AppendLine($"in-server items  = {ShellItems.InServer.Count}, overflow at {NavBar.MaxPrimaryItems}");
+        log.AppendLine($"servers saved    = {ServerStore.Servers.Count} -> {ServerStore.FilePath}");
 
         File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "selftest.txt"), log.ToString());
 
@@ -165,19 +331,5 @@ public sealed partial class MainWindow : Window
         timer.IsRepeating = false;
         timer.Tick += (_, _) => Close();
         timer.Start();
-    }
-
-    private static string Hex(Windows.UI.Color c) => $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
-
-    private static bool IsPackaged()
-    {
-        try
-        {
-            return Windows.ApplicationModel.Package.Current is not null;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

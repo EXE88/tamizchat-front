@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Deliberately a plain library with no Windows or WinUI dependency, so the
+    console simulator can drive a real client without dragging in a UI stack.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>TamizChat.Core</RootNamespace>
+  </PropertyGroup>
+
+</Project>

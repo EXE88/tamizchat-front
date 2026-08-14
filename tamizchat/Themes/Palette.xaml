@@ -27,8 +27,39 @@
     <SolidColorBrush x:Key="TcAccentHoverBrush" Color="#404040" />
     <SolidColorBrush x:Key="TcOnAccentBrush" Color="#FFFFFF" />
 
+    <!--
+        Deliberately the same red in every theme. A muted microphone or a
+        disconnect button has to read as a warning regardless of which palette is
+        on, and it must never be mistaken for a theme accent.
+    -->
+    <SolidColorBrush x:Key="TcDangerBrush" Color="#E5484D" />
+
+    <!--
+        The floating navigation bar's own material. This is in-app acrylic: it
+        blurs the page content behind the bar, which the window backdrop cannot
+        do because that only samples the desktop.
+    -->
+    <AcrylicBrush
+        x:Key="TcBarAcrylicBrush"
+        FallbackColor="#2B2B2B"
+        TintColor="#2B2B2B"
+        TintLuminosityOpacity="0.55"
+        TintOpacity="0.35" />
+
+    <!--
+        The app's own accent button. WinUI's AccentButtonStyle reads the system
+        accent, which is Windows' blue and ignores the chosen theme, so a primary
+        action styled with it would not match the rest of the app.
+    -->
+    <Style x:Key="TcAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Background" Value="{StaticResource TcAccentBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource TcAccentBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource TcOnAccentBrush}" />
+    </Style>
+
     <!-- Shared shape values, so rounding is consistent everywhere. -->
     <CornerRadius x:Key="TcCardCornerRadius">12</CornerRadius>
-    <CornerRadius x:Key="TcBarCornerRadius">20</CornerRadius>
+    <CornerRadius x:Key="TcBarCornerRadius">24</CornerRadius>
+    <CornerRadius x:Key="TcPillCornerRadius">16</CornerRadius>
 
 </ResourceDictionary>

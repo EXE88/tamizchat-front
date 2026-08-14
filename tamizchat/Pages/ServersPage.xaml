@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TamizChat.Pages.ServersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        Managing the list only. Joining lives on Home, so this page never needs a
+        connect button and the two pages do not compete for the same action.
+    -->
+    <!-- No MaxWidth: see the note in HomePage.xaml. -->
+    <ScrollViewer Padding="40,20,40,120">
+        <StackPanel Spacing="18" HorizontalAlignment="Stretch">
+
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="2">
+                    <TextBlock
+                        FontSize="34"
+                        FontWeight="SemiBold"
+                        Foreground="{StaticResource TcTextPrimaryBrush}"
+                        Text="Servers" />
+                    <TextBlock
+                        Foreground="{StaticResource TcTextSecondaryBrush}"
+                        Text="Add, edit and remove saved servers. Join them from Home." />
+                </StackPanel>
+
+                <Button
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    Click="OnAddClick"
+                    Style="{StaticResource TcAccentButtonStyle}"
+                    Content="Add server" />
+            </Grid>
+
+            <ItemsControl x:Name="ServerList">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Spacing="12" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

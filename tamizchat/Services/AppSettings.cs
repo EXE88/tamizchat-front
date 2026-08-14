@@ -18,6 +18,16 @@ public sealed class AppSettings
 
     /// <summary>BCP-47 tag. English is the default; "fa" is the other option.</summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>
+    /// This installation's identity, generated once and kept forever. It is the
+    /// only thing a server knows the user by — there is no account and no login —
+    /// so losing it means becoming a stranger to every server.
+    /// </summary>
+    public string ClientUuid { get; set; } = "";
+
+    /// <summary>The display name used when a server entry does not override it.</summary>
+    public string Username { get; set; } = "";
 }
 
 /// <summary>
@@ -61,6 +71,25 @@ public static class SettingsStore
             // A corrupt or unreadable settings file must not stop the app from
             // starting; the defaults are always a usable configuration.
             Current = new AppSettings();
+        }
+
+        var changed = false;
+        if (string.IsNullOrWhiteSpace(Current.ClientUuid))
+        {
+            Current.ClientUuid = Guid.NewGuid().ToString();
+            changed = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(Current.Username))
+        {
+            var name = Environment.UserName?.Trim();
+            Current.Username = string.IsNullOrWhiteSpace(name) ? "User" : name;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Save();
         }
 
         return Current;

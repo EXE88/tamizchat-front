@@ -139,6 +139,10 @@ public sealed class ThemeManager
         SetBrush("AccentFillColorTertiaryBrush", palette.AccentHover);
         SetBrush("TextOnAccentFillColorPrimaryBrush", palette.OnAccent);
 
+        // The floating bar's own material is acrylic, not a solid brush, so its
+        // tint has to be updated separately.
+        SetAcrylicTint("TcBarAcrylicBrush", palette.Surface);
+
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -171,6 +175,21 @@ public sealed class ThemeManager
             AppBackdrop.GlassHigh => new DesktopAcrylicBackdrop(),
             _ => new DesktopAcrylicBackdrop(),
         };
+    }
+
+    /// <summary>
+    /// An acrylic brush does its own blending, so it needs an opaque tint rather
+    /// than the palette's semi-transparent surface colour.
+    /// </summary>
+    private static void SetAcrylicTint(string key, Color color)
+    {
+        if (Application.Current.Resources.TryGetValue(key, out var value)
+            && value is AcrylicBrush acrylic)
+        {
+            var opaque = Color.FromArgb(0xFF, color.R, color.G, color.B);
+            acrylic.TintColor = opaque;
+            acrylic.FallbackColor = opaque;
+        }
     }
 
     private static void SetBrush(string key, Color color)

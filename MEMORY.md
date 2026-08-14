@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — phases F0, F1 and F2 done
+Last updated: 2026-08-14 — phases F0 to F6 done
 
 ---
 
@@ -112,9 +112,158 @@ human looking at the window.
 backdrops apply and persist; verified both by the self-test sweep and by
 screenshots of the running window.
 
-Remaining phases are tracked as tasks: F3 navigation shell, F4 protocol client,
-F5 user simulator, F6 server list and room grid, F7 chat/files/paint, F8
-localization, F9 LiveKit media, F10 audio effects, F11 installer.
+**Phase F3 (navigation shell and floating bar) — done.** Home/Servers/Settings
+slide between each other, joining a server and opening a feature page drill, the
+bar swaps from three items to eight (four plus More), and leaving unwinds back to
+the server list.
+
+**Phase F4 (protocol client) — done.** `TamizChat.Core` is a plain net10.0
+library with no UI dependency. Verified against the running backend: HTTP probe,
+WebSocket connect, hello handshake, all five rooms in the welcome, a `room.join`
+request matched to its reply by id, `chat.send`, and the resulting
+`chat.message` event coming back.
+
+**Phase F5 (simulator) — done.** `TamizChat.Simulator` builds on Core.
+
+**Phase F6 (server list, join flow, room grid) — done.** Verified against the
+real backend with nine simulated users spread across three rooms: the grid showed
+Lobby 6/25 with six coloured avatars, Gaming 2/25, the rest empty, and joining a
+room switched to the focused view with a "Show all rooms" way back.
+
+Remaining phases are tracked as tasks: F7 chat/files/paint, F8 localization, F9
+LiveKit media, F10 audio effects, F11 installer.
+
+### The room grid
+
+- `Services/ServerSession` owns the one live connection and the room tree. Pages
+  read from it and listen to `Changed`; nothing else touches `TamizChatClient`.
+- Membership events do **not** patch the tree. Any of them queues a debounced
+  `room.list`, which returns the whole tree with members in one frame and is
+  always self-consistent. Twenty people joining costs one round trip, not twenty.
+- The server, not our own copy, decides which room we are in: `MyRoomId` is
+  recomputed from the refreshed tree, or it would drift after a moderator move.
+- `ServerPage.Relayout` is arithmetic, not a panel: one room fills the view, two
+  take half each, four take quarters, and from five on the tiles stay quarters and
+  the grid scrolls. It re-runs on every size change.
+- `RoomTile` rebuilds its avatar showcase on size change, fitting as many as the
+  width allows and collapsing the rest into "+N".
+- `AvatarView` derives its circle colour from the username hash, so the same
+  person is the same colour on every client and every run.
+- **`Border` is sealed in WinUI 3.** Custom controls that want border, corner and
+  padding properties derive from `Grid`, which has all of them.
+
+### Dev environment: turn off the per-IP connection cap
+
+The backend's `network.max_conns_per_ip` defaults to 8, and on a dev machine the
+app and every simulator all come from `127.0.0.1`. The ninth connection gets an
+HTTP **429** and the WebSocket upgrade fails. It is already set to 0 (unlimited)
+on the dev backend; if the volume is ever recreated, set it again:
+
+```bash
+docker compose -f deploy/docker-compose.dev.yml exec backend tamizchat
+```
+
+Then Server settings → Network → Max connections per IP → 0.
+
+### Dev-only entry points on MainWindow
+
+`TAMIZCHAT_START_PAGE` (`server` / `servers` / `settings`) and `TAMIZCHAT_AUTOJOIN`
+(a room name, or `none` to connect without joining) open the app straight into a
+state, which is how the grid gets screenshotted without driving the UI. Note that
+a PowerShell argument value must not be `-`; it gets parsed as a parameter name.
+
+## Solution layout
+
+| Project | What it is |
+|---------|------------|
+| `tamizchat/` | The WinUI 3 app. Unpackaged, net10, x64 |
+| `TamizChat.Core/` | Protocol client and server probe. **No Windows dependency**, so the simulator can use it |
+| `TamizChat.Simulator/` | Console fake user (`tamizsim`) |
+
+### The protocol client
+
+- `TamizChatClient` owns one WebSocket. Requests carry a generated id and are
+  matched back through a `TaskCompletionSource` keyed by it; anything without a
+  matching id is raised as `ServerEvent`. An `error` frame carrying a pending id
+  fails that request rather than surfacing as an event.
+- Sends are serialised behind a semaphore — a WebSocket has a single writer.
+- `ServerProbe` reads `/api/v1/server-info` over plain HTTP. It needs no session,
+  which is what makes the Home page able to show online state for a whole list of
+  servers cheaply.
+
+### Running the simulator
+
+From `TamizChat.Simulator/bin/Debug/net10.0` (or `dotnet run --project`):
+
+```bash
+tamizsim check
+```
+
+```bash
+tamizsim run Bob Lobby
+```
+
+`check` connects once, prints what the server said and exits — the quickest way
+to tell whether the backend and the client still agree. `run` stays connected as
+a fake user in a room and talks occasionally, so the client can be tested with
+somebody else present. `TAMIZSIM_SERVER` overrides `localhost:8080`. Each name
+maps to a stable client UUID, so reconnecting looks like the same person.
+
+### How the shell is wired
+
+- `MainWindow` is the shell: title bar, `ContentFrame`, and the `FloatingNavBar`
+  overlaid at the bottom. It decides the transition for every move.
+- `Navigation/ShellItems` holds the two item sets. **Their order is also the
+  left-to-right screen order**, which is what the slide direction is computed
+  from — reordering that list changes which side pages arrive from.
+- `Navigation/NavigationService` maps `NavTransition` onto WinUI's
+  `SlideNavigationTransitionInfo` / `DrillInNavigationTransitionInfo`.
+- The bar keeps `MaxPrimaryItems` (5) buttons; beyond that the last slot becomes
+  a "More" flyout. Eight in-server items therefore render as four plus More.
+- `FeaturePage` is a shared placeholder for Chat/Files/Members/Bots. Because
+  several items point at the same page type, item identity is the `Key`, not the
+  page type — F7 replaces these with real pages.
+- The back button must sit **outside** the element passed to `SetTitleBar`, or it
+  never receives clicks: everything inside the drag region is inert.
+- `TAMIZCHAT_START_PAGE=server` opens the app directly on the in-server shell,
+  which is how that state gets screenshotted without driving the UI.
+- `TAMIZCHAT_TREEDUMP=1` writes the laid-out visual tree of the Home page to
+  `treedump.txt`. Worth reaching for before believing a screenshot: it is what
+  proved the "missing" buttons were actually present and correctly sized.
+
+### Two bugs already fixed here, worth not reintroducing
+
+- **Identity is the item `Key`, never the page type.** Several bar entries used
+  to share one placeholder page, so selection always stuck to whichever came
+  first in the list and the others were dead. If two entries ever share a page
+  again, only the key keeps them apart.
+- **The bar rebuilds its buttons only when the item set changes.** Rebuilding on
+  every selection change destroyed the button being pressed, so fast clicking
+  landed on whatever replaced it. Selection is a restyle, not a rebuild.
+- Icon glyphs live in Unicode's private use area and get silently stripped when
+  pasted through tooling, leaving every icon blank. They are written as escapes
+  in `ShellItems` for that reason.
+
+### Layout rule: never combine MaxWidth with HorizontalAlignment="Stretch"
+
+Inside a ScrollViewer that pairing centres the block, and the centring came out
+wrong: the content was pushed sideways until its right edge — where the action
+buttons live — fell outside the window. Home and Servers both lost their Join,
+Refresh, Add, Edit and Remove buttons to it, while Settings was fine because it
+uses `HorizontalAlignment="Left"`.
+
+Pages either fill the available width (no MaxWidth) or align Left with a
+MaxWidth. Not both.
+
+**Diagnosing this needs positions, not sizes.** The first tree dump only printed
+sizes, every element looked correct, and that led to the wrong conclusion that
+the app was fine and the screenshot tool was lying. `TAMIZCHAT_TREEDUMP=1` now
+prints `x` for every element, which is what actually showed the offset.
+
+### Accent buttons
+
+Use `TcAccentButtonStyle`, never WinUI's `AccentButtonStyle` — the latter reads
+the Windows system accent (blue) and ignores the chosen theme entirely.
 
 ### How the theme system works
 

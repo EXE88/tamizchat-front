@@ -3,7 +3,7 @@
     x:Class="TamizChat.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:TamizChat"
+    xmlns:controls="using:TamizChat.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -12,7 +12,7 @@
     <!--
         The tint sits over the window backdrop rather than replacing it, so the
         Mica or Acrylic material still shows through. The title bar row is part
-        of this same grid, which is the point of extending into the title bar:
+        of this same grid: that is the point of extending into the title bar,
         there is no seam between the chrome and the page.
     -->
     <Grid Background="{StaticResource TcTintBrush}">
@@ -21,90 +21,56 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Padding="16,0">
-            <TextBlock
-                VerticalAlignment="Center"
-                FontSize="13"
-                FontWeight="SemiBold"
-                Foreground="{StaticResource TcTextPrimaryBrush}"
-                Text="TamizChat" />
-        </Grid>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <!--
-            Temporary. These move into the Settings page in the next phase; for
-            now they are how the theme system gets exercised by hand.
-        -->
-        <ScrollViewer Grid.Row="1" Padding="32,16,32,32">
-            <StackPanel Spacing="20" MaxWidth="520" HorizontalAlignment="Left">
+            <!--
+                Sits outside the drag region below, because a control inside the
+                element passed to SetTitleBar never receives clicks.
+            -->
+            <Button
+                x:Name="BackButton"
+                Grid.Column="0"
+                Width="40"
+                Height="32"
+                Margin="8,0,0,0"
+                Padding="0"
+                Background="Transparent"
+                BorderThickness="0"
+                Click="OnBackClick"
+                Visibility="Collapsed">
+                <FontIcon
+                    FontSize="14"
+                    Foreground="{StaticResource TcTextPrimaryBrush}"
+                    Glyph="&#xE72B;" />
+            </Button>
 
+            <Grid x:Name="AppTitleBar" Grid.Column="1" Padding="8,0">
                 <TextBlock
-                    FontSize="26"
+                    x:Name="TitleText"
+                    VerticalAlignment="Center"
+                    FontSize="13"
                     FontWeight="SemiBold"
                     Foreground="{StaticResource TcTextPrimaryBrush}"
-                    Text="Appearance" />
+                    Text="TamizChat" />
+            </Grid>
+        </Grid>
 
-                <StackPanel Spacing="6">
-                    <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Theme" />
-                    <ComboBox x:Name="ThemeBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeChanged">
-                        <ComboBoxItem Content="Salt and Pepper" />
-                        <ComboBoxItem Content="Violet and Lavender" />
-                        <ComboBoxItem Content="Carbon and Lime" />
-                    </ComboBox>
-                </StackPanel>
+        <Grid Grid.Row="1">
+            <Frame x:Name="ContentFrame" />
 
-                <StackPanel Spacing="6">
-                    <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Mode" />
-                    <ComboBox x:Name="ModeBox" HorizontalAlignment="Stretch" SelectionChanged="OnModeChanged">
-                        <ComboBoxItem Content="Follow Windows" />
-                        <ComboBoxItem Content="Light" />
-                        <ComboBoxItem Content="Dark" />
-                    </ComboBox>
-                </StackPanel>
-
-                <StackPanel Spacing="6">
-                    <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Background" />
-                    <ComboBox x:Name="BackdropBox" HorizontalAlignment="Stretch" SelectionChanged="OnBackdropChanged">
-                        <ComboBoxItem Content="Matte" />
-                        <ComboBoxItem Content="Matte High" />
-                        <ComboBoxItem Content="Glass" />
-                        <ComboBoxItem Content="Glass High" />
-                    </ComboBox>
-                </StackPanel>
-
-                <!-- A card, so the surface and border roles are visible too. -->
-                <Border
-                    Padding="20"
-                    Background="{StaticResource TcSurfaceBrush}"
-                    BorderBrush="{StaticResource TcBorderBrush}"
-                    BorderThickness="1"
-                    CornerRadius="{StaticResource TcCardCornerRadius}">
-                    <StackPanel Spacing="12">
-                        <TextBlock
-                            FontSize="16"
-                            FontWeight="SemiBold"
-                            Foreground="{StaticResource TcTextPrimaryBrush}"
-                            Text="Surface" />
-                        <TextBlock
-                            Foreground="{StaticResource TcTextSecondaryBrush}"
-                            Text="Secondary text on a surface, so contrast can be judged." />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Border
-                                Padding="14,7"
-                                Background="{StaticResource TcAccentBrush}"
-                                CornerRadius="8">
-                                <TextBlock Foreground="{StaticResource TcOnAccentBrush}" Text="Accent" />
-                            </Border>
-                            <Button Content="Standard button" />
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <TextBlock
-                    x:Name="Status"
-                    Foreground="{StaticResource TcTextSecondaryBrush}"
-                    FontFamily="Consolas"
-                    FontSize="12" />
-            </StackPanel>
-        </ScrollViewer>
+            <!--
+                Floating rather than docked: it hangs above the bottom edge and
+                the page scrolls beneath it.
+            -->
+            <controls:FloatingNavBar
+                x:Name="NavBar"
+                Margin="0,0,0,22"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom" />
+        </Grid>
     </Grid>
 </Window>

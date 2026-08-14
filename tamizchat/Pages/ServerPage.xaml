@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TamizChat.Pages.ServerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24,8,24,110">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,12" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock
+                    x:Name="ServerTitle"
+                    FontSize="22"
+                    FontWeight="SemiBold"
+                    Foreground="{StaticResource TcTextPrimaryBrush}" />
+                <TextBlock
+                    x:Name="StatusLine"
+                    FontSize="12"
+                    Foreground="{StaticResource TcTextSecondaryBrush}" />
+            </StackPanel>
+
+            <Button
+                x:Name="ExpandButton"
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Click="OnExpandClick"
+                Visibility="Collapsed"
+                Content="Show all rooms" />
+        </Grid>
+
+        <!--
+            The tiles are laid out in code: how many fit and how tall they are
+            depends on the room count and the space available, which is easier to
+            state as arithmetic than as a panel.
+        -->
+        <ScrollViewer
+            x:Name="GridScroller"
+            Grid.Row="1"
+            VerticalScrollBarVisibility="Auto"
+            VerticalScrollMode="Auto">
+            <Grid x:Name="RoomGrid" />
+        </ScrollViewer>
+
+        <TextBlock
+            x:Name="Message"
+            Grid.Row="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="{StaticResource TcTextSecondaryBrush}"
+            Visibility="Collapsed" />
+    </Grid>
+</Page>
