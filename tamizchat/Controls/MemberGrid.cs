@@ -186,6 +186,12 @@ internal sealed class MemberCell : Grid
 
         Children.Add(_video);
         Children.Add(_stack);
+
+        // Right-click is where moderation lives. Attached to the cell rather
+        // than the avatar so the whole tile is the target — the avatar is a
+        // small circle and people aim at the card.
+        MemberMenu.Attach(this, () => _member);
+
         Update(member);
     }
 

@@ -33,6 +33,12 @@ public sealed partial class MainWindow : Window
 
         // The content is drawn all the way up through the title bar; this strip
         // is what the window can still be dragged by.
+        // The real Win32 window title, which is not the same thing as the text
+        // drawn in our custom title bar. Left unset it stays "WinUI Desktop",
+        // which is what the taskbar and every window-finding tool sees — and it
+        // made the overlays and the main window indistinguishable from outside.
+        Title = "TamizChat";
+
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
@@ -107,7 +113,20 @@ public sealed partial class MainWindow : Window
             _ = AutoJoinAsync(room);
         }
 
-        Closed += (_, _) => OverlayService.Instance.Close();
+        try
+        {
+            HotKeys.Instance.Start();
+        }
+        catch (Exception)
+        {
+            // As above: never let shortcuts stop the window from opening.
+        }
+
+        Closed += (_, _) =>
+        {
+            OverlayService.Instance.Close();
+            HotKeys.Instance.Stop();
+        };
 
         if (Environment.GetEnvironmentVariable("TAMIZCHAT_SELFTEST") == "1")
         {

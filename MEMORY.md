@@ -198,9 +198,46 @@ Eight things asked for after F10, before the installer. Done so far:
   grew live from one person to two, and a chat card appeared with its author.
 - **Inline chat**: a send-only strip above the bottom bar.
 
-Still to do: **admin and moderation in the client**, and the **wider settings
-overhaul** (input/output device pick, mic level, key bindings, right-click a user
-for per-user volume and details).
+- **Moderation in the client**: right-click a person for volume, roles, mute,
+  move, kick, ban — each entry shown only if the server reported that permission.
+- **The settings overhaul**: input and output device pick, microphone level and a
+  live meter, and global key bindings.
+
+All eight of the post-F10 items are done. Remaining phase: F11 installer.
+
+### Moderation
+
+- The menu is built from `welcome.permissions`, refreshed by `user.roles_changed`
+  (which is only ever sent to the person it concerns). This is **politeness, not
+  security** — the server re-checks everything and refuses what the priority rule
+  forbids, which arrives as a failed request and is a normal outcome.
+- Moderation calls are **requested, not sent**: the reply is what carries the
+  refusal, and a moderator pressing Kick on somebody above them needs to be told.
+- Right-click is attached to the whole member cell, not the avatar — people aim
+  at the card, and the avatar is a small circle.
+- A `MenuFlyoutItem` takes text and nothing else, so the volume slider lives in a
+  small flyout opened from the menu rather than inside it.
+
+### Audio devices, levels and shortcuts
+
+- Devices are resolved **by id at the moment they are opened**, never held: a USB
+  headset unplugged and plugged back in is a different object, and a stale
+  reference throws. An id that matches nothing falls back to the system default.
+- Changing a device reopens it immediately. WASAPI binds a client to one endpoint
+  when opened, so swapping means stop and start — and someone changing their
+  microphone is doing it *because* the current one is wrong.
+- Per-person volume is applied in `ReadMix`, where the streams are still
+  separate. That is the whole reason the mix is summed in the app rather than
+  handed to WASAPI.
+- Shortcuts use a **low-level keyboard hook, not `RegisterHotKey`**: push-to-talk
+  needs the key *release*, and RegisterHotKey only reports presses. The hook
+  never swallows a key — a voice client eating keystrokes during a game would be
+  worse than having no shortcuts.
+- The hook's delegate is held in a field. A local would be collected while
+  Windows still had its address, which crashes on the next keystroke.
+- **Starting the hook is wrapped in a try/catch, and that is not defensive
+  padding**: without it the app failed to open at all on this machine. Shortcuts
+  not working is a nuisance; the window never appearing is not acceptable.
 
 ### Overlay transparency: two dead ends and the answer
 
@@ -235,10 +272,10 @@ Three separate things draw a frame, and all three have to go:
 
 All of this is plain Win32; DevWinUI supplies the transparent backdrop only.
 
-**Open, not yet explained:** after this change the members overlay showed a pill
-labelled with the *room* name ("Lobby") alongside the real members, with only one
-app process running and no room-name code left in the file. Worth reproducing
-before trusting the member list.
+**A "Lobby" row in the member list is not a bug.** `tamizsim <mode> <name>`
+takes the *mode* first, so `tamizsim chatter Lobby` connects a user actually
+called "Lobby" — the mode is unrecognised and the name is the second argument.
+Easy to misread as the room leaking into the list.
 
 ### How the overlays work
 

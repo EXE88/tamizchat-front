@@ -10,7 +10,7 @@ namespace TamizChat.Audio;
 /// conversion hidden inside somebody else's stream object is not somewhere DSP
 /// can be inserted.
 /// </summary>
-internal static class AudioFormat
+public static class AudioFormat
 {
     /// <summary>
     /// Collapses interleaved float frames to mono by averaging the channels.

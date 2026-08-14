@@ -31,6 +31,23 @@ public static class MessageTypes
     public const string Pong = "pong";
     public const string Rename = "rename";
 
+    // --- moderation ---
+
+    public const string AdminKick = "admin.kick";
+    public const string AdminBan = "admin.ban";
+    public const string AdminUnban = "admin.unban";
+    public const string AdminMute = "admin.mute";
+    public const string AdminUnmute = "admin.unmute";
+    public const string AdminMove = "admin.move";
+    public const string AdminSanctions = "admin.sanctions";
+
+    public const string RoleList = "admin.role.list";
+    public const string RoleGrant = "admin.role.grant";
+    public const string RoleRevoke = "admin.role.revoke";
+
+    /// <summary>Sent only to the user whose roles changed.</summary>
+    public const string UserRolesChanged = "user.roles_changed";
+
     public const string RoomList = "room.list";
     public const string RoomJoin = "room.join";
     public const string RoomLeave = "room.leave";

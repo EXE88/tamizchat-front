@@ -46,6 +46,75 @@ public sealed class ServerSession
 
     public string MyUuid => SettingsStore.Current.ClientUuid;
 
+    /// <summary>
+    /// What this user is allowed to do, as the server sees it.
+    ///
+    /// Used only to decide which menu entries are worth showing. The server
+    /// checks every action again regardless — this is politeness, not security.
+    /// </summary>
+    public IReadOnlyList<string> Permissions { get; private set; } = [];
+
+    /// <summary>Every role the server defines, for the grant/revoke menu.</summary>
+    public IReadOnlyList<Role> Roles { get; private set; } = [];
+
+    public bool Can(string permission) => Permissions.Contains(permission);
+
+    /// <summary>True when any moderation action at all is available.</summary>
+    public bool IsModerator =>
+        Can("kick") || Can("ban") || Can("mute") || Can("move_users") || Can("manage_roles");
+
+    // --- moderation ---
+
+    public Task KickAsync(string clientUuid, string reason) =>
+        RequestVoidAsync(MessageTypes.AdminKick, new AdminTarget { ClientUuid = clientUuid, Reason = reason });
+
+    public Task BanAsync(string clientUuid, string reason, long seconds) =>
+        RequestVoidAsync(MessageTypes.AdminBan, new AdminSanction
+        {
+            ClientUuid = clientUuid,
+            Reason = reason,
+            DurationSec = seconds,
+        });
+
+    public Task MuteAsync(string clientUuid, string reason, long seconds) =>
+        RequestVoidAsync(MessageTypes.AdminMute, new AdminSanction
+        {
+            ClientUuid = clientUuid,
+            Reason = reason,
+            DurationSec = seconds,
+        });
+
+    public Task UnmuteAsync(string clientUuid) =>
+        RequestVoidAsync(MessageTypes.AdminUnmute, new AdminTarget { ClientUuid = clientUuid });
+
+    /// <summary>An empty room id takes them out of every room.</summary>
+    public Task MoveAsync(string clientUuid, string roomId) =>
+        RequestVoidAsync(MessageTypes.AdminMove, new AdminMove { ClientUuid = clientUuid, RoomId = roomId });
+
+    public Task GrantRoleAsync(string clientUuid, string roleId) =>
+        RequestVoidAsync(MessageTypes.RoleGrant, new RoleAssignment { ClientUuid = clientUuid, RoleId = roleId });
+
+    public Task RevokeRoleAsync(string clientUuid, string roleId) =>
+        RequestVoidAsync(MessageTypes.RoleRevoke, new RoleAssignment { ClientUuid = clientUuid, RoleId = roleId });
+
+    /// <summary>
+    /// Sends a moderation request and waits for the acknowledgement.
+    ///
+    /// Requested rather than sent: the reply is what carries the refusal when
+    /// the server says no — a moderator pressing Kick on somebody above them
+    /// needs to be told, not silently ignored.
+    /// </summary>
+    private async Task RequestVoidAsync(string type, object payload)
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        await _client.RequestAsync(type, payload).ConfigureAwait(true);
+        await RefreshRoomsAsync().ConfigureAwait(true);
+    }
+
     /// <summary>The room the user is in, or empty when they are in none.</summary>
     public string MyRoomId { get; private set; } = "";
 
@@ -69,6 +138,8 @@ public sealed class ServerSession
         Rooms = welcome.Rooms;
         Users = welcome.Users;
         MyRoomId = welcome.You.RoomId;
+        Permissions = welcome.Permissions;
+        Roles = welcome.Roles;
         Raise();
 
         Cue(AppSound.YouJoinedServer);
@@ -467,6 +538,17 @@ public sealed class ServerSession
 
                 MyRoomId = "";
                 QueueRefresh();
+                break;
+
+            case MessageTypes.UserRolesChanged:
+                // Only ever sent to the person it concerns, so this is always
+                // our own new permission set.
+                if (e.As<RolesChanged>() is { } changed && changed.ClientUuid == MyUuid)
+                {
+                    Permissions = changed.Permissions;
+                    _ui.TryEnqueue(Raise);
+                }
+
                 break;
 
             case "user.kicked":

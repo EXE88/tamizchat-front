@@ -61,6 +61,23 @@ public sealed class AppSettings
     /// <summary>The send-only chat strip above the bottom bar.</summary>
     public bool InlineChatEnabled { get; set; }
 
+    /// <summary>Per-person playback volume, by client UUID. 1 is unchanged.</summary>
+    public Dictionary<string, double> UserVolumes { get; set; } = [];
+
+    /// <summary>Empty means "follow the Windows default".</summary>
+    public string InputDeviceId { get; set; } = "";
+
+    public string OutputDeviceId { get; set; } = "";
+
+    /// <summary>Gain applied to your own microphone before anyone hears it.</summary>
+    public double MicGain { get; set; } = 1.0;
+
+    /// <summary>
+    /// Action name to virtual-key code. Stored by name rather than by enum
+    /// value so adding an action later cannot silently rebind an existing key.
+    /// </summary>
+    public Dictionary<string, int> HotKeys { get; set; } = [];
+
     /// <summary>
     /// This installation's identity, generated once and kept forever. It is the
     /// only thing a server knows the user by — there is no account and no login —

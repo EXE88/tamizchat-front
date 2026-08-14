@@ -68,6 +68,30 @@
             </StackPanel>
 
 
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="AudioLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Audio" />
+
+                <TextBlock x:Name="InputLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Microphone" />
+                <ComboBox x:Name="InputBox" HorizontalAlignment="Stretch" SelectionChanged="OnDeviceChanged" />
+
+                <TextBlock x:Name="OutputLabel" Margin="0,6,0,0" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Speakers" />
+                <ComboBox x:Name="OutputBox" HorizontalAlignment="Stretch" SelectionChanged="OnDeviceChanged" />
+
+                <TextBlock x:Name="MicGainLabel" Margin="0,6,0,0" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Microphone level" />
+                <Slider x:Name="MicGainSlider" Minimum="0" Maximum="300" ValueChanged="OnMicGainChanged" />
+
+                <TextBlock x:Name="MicMeterLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Input meter" />
+                <ProgressBar x:Name="MicMeter" Maximum="100" Height="6" />
+            </StackPanel>
+
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="KeysLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Shortcuts" />
+                <TextBlock x:Name="KeysHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="These work even when TamizChat is not the window you are using." />
+                <ItemsControl x:Name="KeyList" Margin="0,6,0,0" />
+            </StackPanel>
+
             <StackPanel Spacing="6">
                 <TextBlock x:Name="SoundboardLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Soundboard" />
                 <TextBlock x:Name="SoundboardHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Clips you can play into the room. Everyone in the room hears them." />

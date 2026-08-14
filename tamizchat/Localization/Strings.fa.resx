@@ -457,4 +457,76 @@
   <data name="Corner.BottomRight" xml:space="preserve">
     <value>پایین راست</value>
   </data>
+  <data name="Member.Volume" xml:space="preserve">
+    <value>بلندی صدا</value>
+  </data>
+  <data name="Member.Roles" xml:space="preserve">
+    <value>نقش‌ها: {0}</value>
+  </data>
+  <data name="Member.NoRoles" xml:space="preserve">
+    <value>بدون نقش</value>
+  </data>
+  <data name="Member.RolesMenu" xml:space="preserve">
+    <value>نقش‌ها</value>
+  </data>
+  <data name="Member.MoveTo" xml:space="preserve">
+    <value>انتقال به</value>
+  </data>
+  <data name="Member.Mute" xml:space="preserve">
+    <value>بی‌صدا کردن</value>
+  </data>
+  <data name="Member.Unmute" xml:space="preserve">
+    <value>باصدا کردن</value>
+  </data>
+  <data name="Member.Kick" xml:space="preserve">
+    <value>اخراج</value>
+  </data>
+  <data name="Member.Ban" xml:space="preserve">
+    <value>مسدود کردن</value>
+  </data>
+  <data name="Member.VolumeFor" xml:space="preserve">
+    <value>بلندی صدای {0}</value>
+  </data>
+  <data name="Settings.Audio" xml:space="preserve">
+    <value>صدا</value>
+  </data>
+  <data name="Settings.Microphone" xml:space="preserve">
+    <value>میکروفون</value>
+  </data>
+  <data name="Settings.Speakers" xml:space="preserve">
+    <value>بلندگو</value>
+  </data>
+  <data name="Settings.MicLevel" xml:space="preserve">
+    <value>سطح میکروفون</value>
+  </data>
+  <data name="Settings.InputMeter" xml:space="preserve">
+    <value>نمایشگر ورودی</value>
+  </data>
+  <data name="Settings.Shortcuts" xml:space="preserve">
+    <value>میان‌برها</value>
+  </data>
+  <data name="Settings.ShortcutsHelp" xml:space="preserve">
+    <value>حتی وقتی تمیزچت پنجره‌ی فعال نیست هم کار می‌کنند.</value>
+  </data>
+  <data name="Key.ToggleMute" xml:space="preserve">
+    <value>بی‌صدا / باصدا</value>
+  </data>
+  <data name="Key.PushToTalk" xml:space="preserve">
+    <value>نگه‌دار و حرف بزن</value>
+  </data>
+  <data name="Key.ToggleDeafen" xml:space="preserve">
+    <value>ناشنوا کردن</value>
+  </data>
+  <data name="Key.StopSound" xml:space="preserve">
+    <value>توقف کلیپ</value>
+  </data>
+  <data name="Key.None" xml:space="preserve">
+    <value>تنظیم نشده</value>
+  </data>
+  <data name="Key.Press" xml:space="preserve">
+    <value>یک کلید بزنید…</value>
+  </data>
+  <data name="Key.Clear" xml:space="preserve">
+    <value>پاک کردن</value>
+  </data>
 </root>

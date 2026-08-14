@@ -45,6 +45,44 @@ public sealed class VoiceService
     public float MicLevel => _microphone.Level;
 
     /// <summary>
+    /// Reopens the audio devices, for when the choice changes mid-call.
+    ///
+    /// Stopping and starting is the only way: WASAPI binds a client to one
+    /// endpoint when it is opened, so a device cannot be swapped underneath it.
+    /// </summary>
+    public void ReopenDevices()
+    {
+        if (!IsConnected)
+        {
+            return;
+        }
+
+        if (_speakers.IsRunning)
+        {
+            _speakers.Stop();
+            _speakers.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
+
+            foreach (var (uuid, volume) in SettingsStore.Current.UserVolumes)
+            {
+                _speakers.SetGain(uuid, volume);
+            }
+        }
+
+        if (_microphone.IsRunning)
+        {
+            _microphone.Stop();
+            try
+            {
+                _microphone.Start(AudioDevices.Resolve(SettingsStore.Current.InputDeviceId, input: true));
+            }
+            catch (Exception)
+            {
+                // The chosen microphone has gone; stay quiet rather than crash.
+            }
+        }
+    }
+
+    /// <summary>
     /// Joins the voice side of the room the session is already in.
     ///
     /// The microphone goes live straight away when the user is allowed to speak,
@@ -92,7 +130,14 @@ public sealed class VoiceService
         CanShareScreen = credentials.CanShareScreen;
         IsMuted = true;
 
-        _speakers.Start();
+        _speakers.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
+
+        // Re-apply whatever this listener had set for the people already here.
+        foreach (var (uuid, volume) in SettingsStore.Current.UserVolumes)
+        {
+            _speakers.SetGain(uuid, volume);
+        }
+
         Raise();
 
         if (CanSpeak)
@@ -220,7 +265,7 @@ public sealed class VoiceService
                 _microphone.FrameReady += OnFrameReady;
                 try
                 {
-                    _microphone.Start();
+                    _microphone.Start(AudioDevices.Resolve(SettingsStore.Current.InputDeviceId, input: true));
                 }
                 catch (Exception)
                 {
@@ -241,6 +286,23 @@ public sealed class VoiceService
     }
 
     public Task ToggleMuteAsync() => SetMutedAsync(!IsMuted);
+
+    /// <summary>
+    /// How loud one other person is, for this listener only.
+    ///
+    /// Kept in settings by client UUID rather than by name, so turning somebody
+    /// down survives them renaming themselves — and survives a restart, which is
+    /// the point of bothering to store it at all.
+    /// </summary>
+    public double GetVolume(string clientUuid) =>
+        SettingsStore.Current.UserVolumes.TryGetValue(clientUuid, out var v) ? v : 1.0;
+
+    public void SetVolume(string clientUuid, double volume)
+    {
+        SettingsStore.Current.UserVolumes[clientUuid] = volume;
+        SettingsStore.Save();
+        _speakers.SetGain(clientUuid, volume);
+    }
 
     // --- camera and screen ---
 
@@ -376,6 +438,18 @@ public sealed class VoiceService
     /// </summary>
     private void OnFrameReady(object? sender, short[] pcm)
     {
+        // Your own level first, before anything else touches the frame: the
+        // voice changer and the soundboard should both work on a signal that is
+        // already at the level you chose.
+        var gain = SettingsStore.Current.MicGain;
+        if (Math.Abs(gain - 1.0) > 0.001)
+        {
+            for (var i = 0; i < pcm.Length; i++)
+            {
+                pcm[i] = AudioFormat.ToPcm(pcm[i] / 32768f * (float)gain);
+            }
+        }
+
         Effect.Process(pcm);
         var playing = Soundboard.MixInto(pcm);
 

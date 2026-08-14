@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using TamizChat.Audio;
 using TamizChat.Overlays;
 using Windows.Storage.Pickers;
@@ -36,6 +38,10 @@ public sealed partial class SettingsPage : Page
         MaxMessagesSlider.Value = SettingsStore.Current.MessagesOverlayMax;
         FadeAfterSlider.Value = SettingsStore.Current.MessagesOverlayFadeSeconds;
 
+        FillDevices(InputBox, AudioDevices.Inputs(), SettingsStore.Current.InputDeviceId);
+        FillDevices(OutputBox, AudioDevices.Outputs(), SettingsStore.Current.OutputDeviceId);
+        MicGainSlider.Value = SettingsStore.Current.MicGain * 100;
+
         // **After every control has been given its value.** Setting a control
         // raises its change handler, and those handlers write the whole group
         // back to settings — so with this line any higher up, populating the
@@ -45,7 +51,13 @@ public sealed partial class SettingsPage : Page
 
         Translate();
         RenderClips();
+        RenderKeys();
         ShowStatus();
+        StartMeter();
+
+        // The timer holds a reference to this page; without stopping it the page
+        // is kept alive after navigating away, and so is the tick.
+        Unloaded += (_, _) => _meter.Stop();
     }
 
     private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
@@ -79,6 +91,13 @@ public sealed partial class SettingsPage : Page
         AccentLabel.Text = Loc.Get("Settings.Accent");
         StandardButton.Content = Loc.Get("Settings.StandardButton");
         SecondaryText.Text = Loc.Get("Settings.SecondaryText");
+        AudioLabel.Text = Loc.Get("Settings.Audio");
+        InputLabel.Text = Loc.Get("Settings.Microphone");
+        OutputLabel.Text = Loc.Get("Settings.Speakers");
+        MicGainLabel.Text = Loc.Get("Settings.MicLevel");
+        MicMeterLabel.Text = Loc.Get("Settings.InputMeter");
+        KeysLabel.Text = Loc.Get("Settings.Shortcuts");
+        KeysHelp.Text = Loc.Get("Settings.ShortcutsHelp");
         SoundboardLabel.Text = Loc.Get("Settings.Soundboard");
         SoundboardHelp.Text = Loc.Get("Settings.SoundboardHelp");
         AddClipButton.Content = Loc.Get("Settings.AddClip");
@@ -245,6 +264,145 @@ public sealed partial class SettingsPage : Page
         SettingsStore.Save();
         OverlayService.Instance.Apply();
     }
+
+    /// <summary>
+    /// Fills a device list, keeping the saved choice selected.
+    ///
+    /// A device that is not currently plugged in simply is not in the list, so
+    /// the selection falls back to the system default rather than showing an
+    /// entry that cannot be opened.
+    /// </summary>
+    private static void FillDevices(ComboBox box, IReadOnlyList<AudioDeviceInfo> devices, string selectedId)
+    {
+        box.Items.Clear();
+
+        foreach (var device in devices)
+        {
+            box.Items.Add(new ComboBoxItem { Content = device.Name, Tag = device.Id });
+        }
+
+        var index = devices.ToList().FindIndex(d => d.Id == selectedId);
+        box.SelectedIndex = index < 0 ? 0 : index;
+    }
+
+    private void OnDeviceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading) return;
+
+        SettingsStore.Current.InputDeviceId = (InputBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        SettingsStore.Current.OutputDeviceId = (OutputBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+        SettingsStore.Save();
+
+        // Takes effect immediately rather than at the next call: changing your
+        // microphone is something you do *because* the current one is wrong.
+        VoiceService.Instance.ReopenDevices();
+    }
+
+    private void OnMicGainChanged(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        SettingsStore.Current.MicGain = MicGainSlider.Value / 100;
+        SettingsStore.Save();
+    }
+
+    /// <summary>
+    /// Drives the input meter while this page is open.
+    ///
+    /// A timer rather than an event from the capture path: the level changes a
+    /// hundred times a second and a meter only needs to look alive.
+    /// </summary>
+    private void StartMeter()
+    {
+        _meter.Interval = TimeSpan.FromMilliseconds(60);
+        _meter.Tick += (_, _) => MicMeter.Value = Math.Min(100, VoiceService.Instance.MicLevel * 100);
+        _meter.Start();
+    }
+
+    private readonly DispatcherTimer _meter = new();
+
+    /// <summary>
+    /// One row per action: what it does, and the key bound to it.
+    ///
+    /// Binding is "press the button, then press the key" rather than typing a
+    /// key name — the codes are virtual-key numbers and nobody knows them.
+    /// </summary>
+    private void RenderKeys()
+    {
+        KeyList.Items.Clear();
+
+        foreach (HotKeyAction action in Enum.GetValues<HotKeyAction>())
+        {
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var label = new TextBlock
+            {
+                Text = Loc.Get($"Key.{action}"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["TcTextPrimaryBrush"],
+            };
+
+            var bound = SettingsStore.Current.HotKeys.TryGetValue(action.ToString(), out var code) ? code : 0;
+
+            var button = new Button
+            {
+                Content = bound == 0 ? Loc.Get("Key.None") : KeyName(bound),
+                MinWidth = 120,
+                Margin = new Thickness(8, 0, 8, 0),
+            };
+
+            button.Click += (_, _) => Capture(action, button);
+
+            var clear = new Button { Content = Loc.Get("Key.Clear") };
+            clear.Click += (_, _) =>
+            {
+                SettingsStore.Current.HotKeys.Remove(action.ToString());
+                SettingsStore.Save();
+                RenderKeys();
+            };
+
+            Grid.SetColumn(label, 0);
+            Grid.SetColumn(button, 1);
+            Grid.SetColumn(clear, 2);
+            row.Children.Add(label);
+            row.Children.Add(button);
+            row.Children.Add(clear);
+
+            KeyList.Items.Add(row);
+        }
+    }
+
+    /// <summary>
+    /// Waits for the next key and binds it.
+    ///
+    /// Handled on the button itself so the keystroke does not also reach the
+    /// page — and Escape cancels, which is the one key nobody wants to bind.
+    /// </summary>
+    private void Capture(HotKeyAction action, Button button)
+    {
+        button.Content = Loc.Get("Key.Press");
+        button.Focus(FocusState.Programmatic);
+
+        void OnKey(object sender, KeyRoutedEventArgs e)
+        {
+            e.Handled = true;
+            button.KeyDown -= OnKey;
+
+            if (e.Key != Windows.System.VirtualKey.Escape)
+            {
+                SettingsStore.Current.HotKeys[action.ToString()] = (int)e.Key;
+                SettingsStore.Save();
+            }
+
+            RenderKeys();
+        }
+
+        button.KeyDown += OnKey;
+    }
+
+    private static string KeyName(int code) => ((Windows.System.VirtualKey)code).ToString();
 
     private void OnThemeChanged(object sender, SelectionChangedEventArgs e)
     {

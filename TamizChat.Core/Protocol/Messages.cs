@@ -119,6 +119,9 @@ public sealed class Welcome
     [JsonPropertyName("rooms")]
     public List<Room> Rooms { get; set; } = [];
 
+    [JsonPropertyName("roles")]
+    public List<Role> Roles { get; set; } = [];
+
     [JsonPropertyName("permissions")]
     public List<string> Permissions { get; set; } = [];
 
@@ -550,4 +553,89 @@ public sealed class SanctionEvent
 
     [JsonPropertyName("expires_at")]
     public long ExpiresAt { get; set; }
+}
+
+/// <summary>A role as the server defines it.</summary>
+public sealed class Role
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "";
+
+    /// <summary>
+    /// Lower numbers act on higher ones, never the reverse.
+    ///
+    /// The server enforces this and refuses anything that breaks it; the client
+    /// uses it only to avoid offering an action that is certain to be rejected.
+    /// </summary>
+    [JsonPropertyName("priority")]
+    public int Priority { get; set; }
+
+    [JsonPropertyName("permissions")]
+    public List<string> Permissions { get; set; } = [];
+
+    [JsonPropertyName("is_default")]
+    public bool IsDefault { get; set; }
+}
+
+/// <summary>`admin.kick` — and the shape `admin.unban`/`admin.unmute` also use.</summary>
+public sealed class AdminTarget
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+}
+
+/// <summary>`admin.ban` and `admin.mute`.</summary>
+public sealed class AdminSanction
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    /// <summary>Seconds. Zero means permanent.</summary>
+    [JsonPropertyName("duration_sec")]
+    public long DurationSec { get; set; }
+}
+
+/// <summary>`admin.move`. An empty room means "out of every room".</summary>
+public sealed class AdminMove
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+}
+
+/// <summary>`admin.role.grant` and `admin.role.revoke`.</summary>
+public sealed class RoleAssignment
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("role_id")]
+    public string RoleId { get; set; } = "";
+}
+
+/// <summary>`user.roles_changed` — the caller's own new permissions.</summary>
+public sealed class RolesChanged
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("roles")]
+    public List<string> Roles { get; set; } = [];
+
+    [JsonPropertyName("permissions")]
+    public List<string> Permissions { get; set; } = [];
 }

@@ -26,6 +26,7 @@ public sealed class SpeakerPlayback : IDisposable
     private const int MaxBufferedSamples = MediaSession.SampleRate / 2;
 
     private readonly Dictionary<string, Queue<short>> _buffers = [];
+    private readonly Dictionary<string, float> _gains = [];
     private readonly object _gate = new();
 
     private WasapiOut? _output;
@@ -155,6 +156,27 @@ public sealed class SpeakerPlayback : IDisposable
         public int Position { get; set; }
     }
 
+    /// <summary>
+    /// How loud one person is, for this listener only. 1 is unchanged, 0 is
+    /// silent, and above 1 amplifies — the mix is clamped afterwards, so pushing
+    /// somebody quiet up is safe.
+    /// </summary>
+    public void SetGain(string identity, double gain)
+    {
+        lock (_gate)
+        {
+            _gains[identity] = (float)Math.Clamp(gain, 0, 4);
+        }
+    }
+
+    public double GetGain(string identity)
+    {
+        lock (_gate)
+        {
+            return _gains.TryGetValue(identity, out var gain) ? gain : 1.0;
+        }
+    }
+
     /// <summary>Forgets a participant, so their buffer does not linger after they leave.</summary>
     public void Remove(string identity)
     {
@@ -173,11 +195,16 @@ public sealed class SpeakerPlayback : IDisposable
 
         lock (_gate)
         {
-            foreach (var queue in _buffers.Values)
+            foreach (var (identity, queue) in _buffers)
             {
+                // Per-person gain belongs here, where the streams are still
+                // separate — this is the whole reason the mix is done in the app
+                // rather than handed to WASAPI to sum.
+                var gain = _gains.TryGetValue(identity, out var g) ? g : 1f;
+
                 for (var i = 0; i < samples && queue.Count > 0; i++)
                 {
-                    mix[i] += queue.Dequeue() / 32768f;
+                    mix[i] += queue.Dequeue() / 32768f * gain;
                 }
             }
 

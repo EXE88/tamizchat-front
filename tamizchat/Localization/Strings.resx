@@ -457,4 +457,76 @@
   <data name="Corner.BottomRight" xml:space="preserve">
     <value>Bottom right</value>
   </data>
+  <data name="Member.Volume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Member.Roles" xml:space="preserve">
+    <value>Roles: {0}</value>
+  </data>
+  <data name="Member.NoRoles" xml:space="preserve">
+    <value>none</value>
+  </data>
+  <data name="Member.RolesMenu" xml:space="preserve">
+    <value>Roles</value>
+  </data>
+  <data name="Member.MoveTo" xml:space="preserve">
+    <value>Move to</value>
+  </data>
+  <data name="Member.Mute" xml:space="preserve">
+    <value>Mute</value>
+  </data>
+  <data name="Member.Unmute" xml:space="preserve">
+    <value>Unmute</value>
+  </data>
+  <data name="Member.Kick" xml:space="preserve">
+    <value>Kick</value>
+  </data>
+  <data name="Member.Ban" xml:space="preserve">
+    <value>Ban</value>
+  </data>
+  <data name="Member.VolumeFor" xml:space="preserve">
+    <value>Volume for {0}</value>
+  </data>
+  <data name="Settings.Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="Settings.Microphone" xml:space="preserve">
+    <value>Microphone</value>
+  </data>
+  <data name="Settings.Speakers" xml:space="preserve">
+    <value>Speakers</value>
+  </data>
+  <data name="Settings.MicLevel" xml:space="preserve">
+    <value>Microphone level</value>
+  </data>
+  <data name="Settings.InputMeter" xml:space="preserve">
+    <value>Input meter</value>
+  </data>
+  <data name="Settings.Shortcuts" xml:space="preserve">
+    <value>Shortcuts</value>
+  </data>
+  <data name="Settings.ShortcutsHelp" xml:space="preserve">
+    <value>These work even when TamizChat is not the window you are using.</value>
+  </data>
+  <data name="Key.ToggleMute" xml:space="preserve">
+    <value>Mute and unmute</value>
+  </data>
+  <data name="Key.PushToTalk" xml:space="preserve">
+    <value>Push to talk</value>
+  </data>
+  <data name="Key.ToggleDeafen" xml:space="preserve">
+    <value>Deafen</value>
+  </data>
+  <data name="Key.StopSound" xml:space="preserve">
+    <value>Stop the current clip</value>
+  </data>
+  <data name="Key.None" xml:space="preserve">
+    <value>Not set</value>
+  </data>
+  <data name="Key.Press" xml:space="preserve">
+    <value>Press a key…</value>
+  </data>
+  <data name="Key.Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
 </root>

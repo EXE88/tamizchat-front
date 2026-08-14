@@ -65,6 +65,10 @@ public abstract class OverlayWindow : Window
 
     protected OverlayWindow()
     {
+        // Named so it is distinguishable from the main window from outside the
+        // process; nothing ever displays this, since there is no title bar.
+        Title = "TamizChat Overlay";
+
         _handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
 
         var id = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_handle);
