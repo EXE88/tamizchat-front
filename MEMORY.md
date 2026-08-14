@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — phases F0 to F6 done
+Last updated: 2026-08-14 — phases F0 to F7 done
 
 ---
 
@@ -130,8 +130,96 @@ real backend with nine simulated users spread across three rooms: the grid showe
 Lobby 6/25 with six coloured avatars, Gaming 2/25, the rest empty, and joining a
 room switched to the focused view with a "Show all rooms" way back.
 
-Remaining phases are tracked as tasks: F7 chat/files/paint, F8 localization, F9
-LiveKit media, F10 audio effects, F11 installer.
+**Phase F7 (chat, files, paint board) — done.** All three verified against the
+real backend with simulated users.
+
+Remaining phases are tracked as tasks: F8 localization, F9 LiveKit media, F10
+audio effects, F11 installer.
+
+### Chat
+
+- Messages live only in the room's memory on the server, so there is nothing to
+  cache locally. The page reads one page of history on open and follows the live
+  stream from there.
+- The sender receives their own message **twice** — once as the reply to
+  `chat.send` and once as the broadcast. Rows are de-duplicated by message id.
+- The view only auto-scrolls when the user was already at the bottom; scrolling up
+  to read is not interrupted by new arrivals.
+- Paging back preserves the reading position by measuring `ExtentHeight` before
+  and after the insert, rather than jumping to the new top.
+- Typing indicators are throttled to one every 3 seconds on send, and aged out
+  after 5 seconds on receive — the protocol has no guaranteed "stopped" message.
+
+### Files
+
+Permission travels over the socket, bytes over HTTP. `file.upload_request` returns
+a single-use ticket; the raw bytes are POSTed to the ticket's URL with the token
+as a bearer header. **Nothing is posted afterwards** — the server puts the file
+into the room itself, so it arrives as an ordinary `chat.message` whose
+`attachment` is set.
+
+Download links are fetched per view: they are short-lived and only valid for the
+room the user is in right now, so they cannot be cached or handed on.
+
+The file picker needs `InitializeWithWindow` — an unpackaged app has no implicit
+window for it to sit on and it throws without one.
+
+### Which paint messages actually reply
+
+This cost a hang before it was found, and the protocol document does not spell it
+out — the backend handlers do:
+
+| Message | Reply on success? |
+|---------|-------------------|
+| `paint.begin` | **yes**, the Stroke with its new id |
+| `paint.append` | no, ever |
+| `paint.end` | **no** — only on failure |
+| `paint.undo` / `paint.clear` / `paint.state` | yes |
+
+So `paint.end` must be *sent*, not *requested*. Awaiting a reply that only comes
+on failure waits forever.
+
+Other things the board depends on:
+
+- Coordinates on the wire are normalized 0..1, never pixels, so a drawing lands in
+  the same place on any window size. Resizing rebuilds the pixel copies from the
+  board rather than stretching them.
+- Points are drawn locally the instant the pointer moves and sent in 60 ms
+  batches. Waiting for the round trip is what makes drawing feel sluggish.
+- Points closer than 0.004 apart are dropped — a fast scribble would otherwise be
+  hundreds of frames a second.
+- The eraser paints the board's own colour rather than removing points, which
+  keeps every stroke a simple append-only line. That colour must be **opaque** —
+  `TcBoardBrush`, never `TcSurfaceBrush`, which is translucent and only tints
+  what is under it instead of covering it. The eraser is also 2.5× the pen width,
+  or it never feels like it is erasing. Each client resolves the colour from its
+  own theme, so an eraser stroke drawn under one theme still erases under another.
+- **Undo and clear reply to the caller instead of broadcasting to them.** The
+  server excludes whoever asked from the broadcast and answers with an
+  id-correlated reply — the project's standard pattern. `UndoStrokeAsync` and
+  `ClearBoardAsync` therefore deserialize that reply and raise the local event
+  themselves, or the caller's own board never changes until the page is left and
+  re-entered.
+- **A resize must not re-fetch the board.** `_strokes` holds the normalized copy
+  and a resize re-projects from it. Re-fetching raced with itself: several size
+  changes fire during one page load, and an older reply landing last would clear
+  the canvas and leave a stale — sometimes empty — board.
+
+### Room content is temporary, and that is not a bug
+
+Measured against the dev server, with `rooms.purge_grace_sec = 30`:
+
+| Step | Strokes |
+|------|---------|
+| Draw, then leave the room empty | 1 |
+| Return immediately | 1 |
+| Return 20s later (inside the grace) | 1 |
+| Return after the grace | 0 |
+
+So a drawing survives a quick reconnect and is gone after a slow one. Reconnecting
+by hand — open the app, Join, pick the room, open Paint — easily takes longer than
+30 seconds, which is why the same test can look inconsistent. To keep a board or a
+chat alive while inspecting it, leave a `tamizsim run` simulator in the room.
 
 ### The room grid
 
@@ -203,11 +291,25 @@ tamizsim check
 tamizsim run Bob Lobby
 ```
 
+```bash
+tamizsim paint Painter Lobby
+```
+
+```bash
+tamizsim file Uploader Lobby
+```
+
 `check` connects once, prints what the server said and exits — the quickest way
 to tell whether the backend and the client still agree. `run` stays connected as
 a fake user in a room and talks occasionally, so the client can be tested with
-somebody else present. `TAMIZSIM_SERVER` overrides `localhost:8080`. Each name
-maps to a stable client UUID, so reconnecting looks like the same person.
+somebody else present. `paint` draws one streamed stroke and `file` uploads a
+small file, both into the named room. `TAMIZSIM_SERVER` overrides
+`localhost:8080`. Each name maps to a stable client UUID, so reconnecting looks
+like the same person.
+
+A room's board and chat are **erased when the last person leaves**, so keep a
+`run` simulator in the room while inspecting either, or there will be nothing to
+see by the time the app connects.
 
 ### How the shell is wired
 

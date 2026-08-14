@@ -48,6 +48,20 @@ public static class MessageTypes
     public const string UserLeft = "user.left";
     public const string UserUpdated = "user.updated";
 
+    public const string FileUploadRequest = "file.upload_request";
+    public const string FileUploadTicket = "file.upload_ticket";
+    public const string FileDownloadToken = "file.download_token";
+    public const string FileDownload = "file.download";
+
+    // The same names are used in both directions: a paint.begin sent is a
+    // request, a paint.begin received is somebody else drawing.
+    public const string PaintBegin = "paint.begin";
+    public const string PaintAppend = "paint.append";
+    public const string PaintEnd = "paint.end";
+    public const string PaintUndo = "paint.undo";
+    public const string PaintClear = "paint.clear";
+    public const string PaintState = "paint.state";
+
     public const string MediaSetState = "media.set_state";
     public const string MediaState = "media.state";
 

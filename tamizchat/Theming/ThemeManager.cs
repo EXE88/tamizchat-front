@@ -143,6 +143,9 @@ public sealed class ThemeManager
         // tint has to be updated separately.
         SetAcrylicTint("TcBarAcrylicBrush", palette.Surface);
 
+        // The board needs the same colour with the transparency taken out.
+        SetBrush("TcBoardBrush", Color.FromArgb(0xFF, palette.Surface.R, palette.Surface.G, palette.Surface.B));
+
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 

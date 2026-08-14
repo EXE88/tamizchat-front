@@ -17,6 +17,14 @@
 
     <!-- Cards, panels, the floating navigation bar. -->
     <SolidColorBrush x:Key="TcSurfaceBrush" Color="#B0FFFFFF" />
+
+    <!--
+        The paint board, and only the paint board. It is opaque on purpose: the
+        eraser works by painting the background colour over a stroke, and a
+        translucent surface would only tint what is underneath instead of hiding
+        it.
+    -->
+    <SolidColorBrush x:Key="TcBoardBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TcSurfaceHoverBrush" Color="#B0D4D4D4" />
     <SolidColorBrush x:Key="TcBorderBrush" Color="#80B3B3B3" />
 

@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using TamizChat.Controls;
 using TamizChat.Core.Protocol;
+using Room = TamizChat.Core.Protocol.Room;
 using TamizChat.Services;
 
 namespace TamizChat.Pages;
@@ -155,39 +156,22 @@ public sealed partial class ServerPage : Page
             return;
         }
 
-        // One room fills the view; two sit side by side; four make quarters. Past
-        // four the tiles stay quarter-sized and the grid scrolls.
-        var columns = rooms.Count <= 1 ? 1 : 2;
-        var rowsInView = rooms.Count <= 2 ? 1 : 2;
+        // The same subdivision the people inside a room use.
+        var slots = TileLayout.Arrange(rooms.Count, width, height, TileGap);
 
-        var tileWidth = (width - (TileGap * (columns - 1))) / columns;
-        var tileHeight = (height - (TileGap * (rowsInView - 1))) / rowsInView;
-
-        var index = 0;
-        foreach (var room in rooms)
+        for (var i = 0; i < rooms.Count && i < slots.Length; i++)
         {
-            if (!_tiles.TryGetValue(room.Id, out var tile))
+            if (!_tiles.TryGetValue(rooms[i].Id, out var tile))
             {
                 continue;
             }
 
             tile.Visibility = Visibility.Visible;
-            var column = index % columns;
-            var row = index / columns;
-
-            Place(
-                tile,
-                column * (tileWidth + TileGap),
-                row * (tileHeight + TileGap),
-                tileWidth,
-                tileHeight);
-
-            index++;
+            Place(tile, slots[i].X, slots[i].Y, slots[i].Width, slots[i].Height);
         }
 
-        var totalRows = (int)Math.Ceiling(rooms.Count / (double)columns);
         RoomGrid.Width = width;
-        RoomGrid.Height = (totalRows * tileHeight) + ((totalRows - 1) * TileGap);
+        RoomGrid.Height = TileLayout.ContentHeight(rooms.Count, height, TileGap);
     }
 
     private static void Place(FrameworkElement element, double x, double y, double width, double height)

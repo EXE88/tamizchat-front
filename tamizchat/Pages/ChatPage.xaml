@@ -7,17 +7,87 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer Padding="40,24,40,120">
-        <StackPanel Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+    <Grid Padding="24,8,24,110">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="2,0,2,10">
             <TextBlock
-                FontSize="34"
+                x:Name="RoomTitle"
+                FontSize="22"
                 FontWeight="SemiBold"
-                Foreground="{StaticResource TcTextPrimaryBrush}"
-                Text="Chat" />
+                Foreground="{StaticResource TcTextPrimaryBrush}" />
             <TextBlock
-                Foreground="{StaticResource TcTextSecondaryBrush}"
-                TextWrapping="Wrap"
-                Text="Messages, history paging, stickers and the typing indicator land here once the client can talk to the server." />
+                x:Name="RoomSubtitle"
+                FontSize="12"
+                Foreground="{StaticResource TcTextSecondaryBrush}" />
         </StackPanel>
-    </ScrollViewer>
+
+        <Border
+            Grid.Row="1"
+            Background="{StaticResource TcSurfaceBrush}"
+            BorderBrush="{StaticResource TcBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource TcCardCornerRadius}">
+            <Grid>
+                <ScrollViewer
+                    x:Name="MessageScroller"
+                    Padding="16,12"
+                    VerticalScrollBarVisibility="Auto"
+                    ViewChanged="OnScrollChanged">
+                    <StackPanel x:Name="MessageList" Spacing="10" />
+                </ScrollViewer>
+
+                <TextBlock
+                    x:Name="Placeholder"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Foreground="{StaticResource TcTextSecondaryBrush}" />
+            </Grid>
+        </Border>
+
+        <TextBlock
+            x:Name="TypingLine"
+            Grid.Row="2"
+            Margin="4,6,4,0"
+            FontSize="12"
+            FontStyle="Italic"
+            Foreground="{StaticResource TcTextSecondaryBrush}" />
+
+        <Grid Grid.Row="3" Margin="0,10,0,0" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox
+                x:Name="Composer"
+                Grid.Column="0"
+                MaxLength="2000"
+                PlaceholderText="Write a message"
+                TextChanged="OnComposerChanged"
+                KeyDown="OnComposerKeyDown" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button
+                    x:Name="AttachButton"
+                    Padding="12,8"
+                    Click="OnAttachClick"
+                    ToolTipService.ToolTip="Send a file">
+                    <FontIcon FontSize="15" Glyph="&#xE723;" />
+                </Button>
+
+                <Button
+                    x:Name="SendButton"
+                    Padding="22,8"
+                    Click="OnSendClick"
+                    Style="{StaticResource TcAccentButtonStyle}"
+                    Content="Send" />
+            </StackPanel>
+        </Grid>
+    </Grid>
 </Page>

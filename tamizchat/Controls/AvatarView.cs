@@ -77,6 +77,24 @@ public sealed class AvatarView : Grid
 
     public void SetMuted(bool muted) => _circle.Opacity = muted ? 0.45 : 1.0;
 
+    /// <summary>
+    /// Rescales the whole avatar. Cells change size as people join and leave, and
+    /// rebuilding the control for each new size would throw away its state.
+    /// </summary>
+    public void Resize(double size)
+    {
+        if (Math.Abs(Width - size) < 0.5)
+        {
+            return;
+        }
+
+        Width = size;
+        Height = size;
+        _circle.CornerRadius = new CornerRadius(size / 2);
+        _halo.CornerRadius = new CornerRadius(size);
+        _letter.FontSize = size * 0.4;
+    }
+
     private static string Initial(string username) =>
         string.IsNullOrWhiteSpace(username) ? "?" : username.Trim()[..1].ToUpperInvariant();
 

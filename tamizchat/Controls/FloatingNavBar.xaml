@@ -31,13 +31,6 @@
                                 <ScaleTransform x:Name="Squish" />
                             </Grid.RenderTransform>
 
-                            <!-- Sits under the content, above the sliding pill. -->
-                            <Border
-                                x:Name="Hover"
-                                Background="{StaticResource TcSurfaceHoverBrush}"
-                                CornerRadius="{StaticResource TcPillCornerRadius}"
-                                Opacity="0" />
-
                             <ContentPresenter
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -51,23 +44,16 @@
 
                                     <VisualState x:Name="Normal" />
 
-                                    <VisualState x:Name="PointerOver">
-                                        <Storyboard>
-                                            <DoubleAnimation
-                                                Storyboard.TargetName="Hover"
-                                                Storyboard.TargetProperty="Opacity"
-                                                To="0.6"
-                                                Duration="0:0:0.15" />
-                                        </Storyboard>
-                                    </VisualState>
+                                    <!--
+                                        No hover state on purpose: the sliding
+                                        pill already says where you are, and a
+                                        second highlight following the mouse
+                                        competes with it.
+                                    -->
+                                    <VisualState x:Name="PointerOver" />
 
                                     <VisualState x:Name="Pressed">
                                         <Storyboard>
-                                            <DoubleAnimation
-                                                Storyboard.TargetName="Hover"
-                                                Storyboard.TargetProperty="Opacity"
-                                                To="0.35"
-                                                Duration="0:0:0.08" />
                                             <DoubleAnimation
                                                 Storyboard.TargetName="Squish"
                                                 Storyboard.TargetProperty="ScaleX"

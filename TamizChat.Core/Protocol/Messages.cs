@@ -126,6 +126,40 @@ public sealed class Welcome
     public Limits Limits { get; set; } = new();
 }
 
+/// <summary>
+/// What the server detected about an uploaded file. The MIME type comes from the
+/// bytes themselves, not from the name or anything the client claimed.
+/// </summary>
+public sealed class Attachment
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("size")]
+    public long Size { get; set; }
+
+    [JsonPropertyName("mime")]
+    public string Mime { get; set; } = "";
+
+    /// <summary>"image" or "file".</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "file";
+
+    [JsonPropertyName("width")]
+    public int Width { get; set; }
+
+    [JsonPropertyName("height")]
+    public int Height { get; set; }
+
+    [JsonPropertyName("has_thumb")]
+    public bool HasThumb { get; set; }
+
+    public bool IsImage => Kind == "image";
+}
+
 public sealed class ChatMessage
 {
     [JsonPropertyName("id")]
@@ -140,14 +174,186 @@ public sealed class ChatMessage
     [JsonPropertyName("author")]
     public User Author { get; set; } = new();
 
+    /// <summary>"text", "sticker" or "file".</summary>
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = "text";
 
     [JsonPropertyName("text")]
     public string Text { get; set; } = "";
 
+    /// <summary>Set on messages of kind "file".</summary>
+    [JsonPropertyName("attachment")]
+    public Attachment? Attachment { get; set; }
+
     [JsonPropertyName("created_at")]
     public long CreatedAt { get; set; }
+}
+
+// --- files ---
+
+/// <summary>Asks permission to upload, before a single byte is sent.</summary>
+public sealed class FileUploadRequest
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("size")]
+    public long Size { get; set; }
+}
+
+/// <summary>Permission to upload exactly one file, once.</summary>
+public sealed class FileUploadTicket
+{
+    [JsonPropertyName("upload_id")]
+    public string UploadId { get; set; } = "";
+
+    /// <summary>Path to POST the raw bytes to.</summary>
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("token")]
+    public string Token { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+
+    [JsonPropertyName("max_size")]
+    public long MaxSize { get; set; }
+}
+
+public sealed class FileDownloadRequest
+{
+    [JsonPropertyName("file_id")]
+    public string FileId { get; set; } = "";
+}
+
+public sealed class FileDownload
+{
+    [JsonPropertyName("file_id")]
+    public string FileId { get; set; } = "";
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("thumb_url")]
+    public string ThumbUrl { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+}
+
+// --- paint ---
+
+public sealed class PaintPoint
+{
+    [JsonPropertyName("x")]
+    public double X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double Y { get; set; }
+}
+
+/// <summary>One continuous mark on the board.</summary>
+public sealed class Stroke
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("seq")]
+    public long Seq { get; set; }
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    /// <summary>The author's client UUID.</summary>
+    [JsonPropertyName("author")]
+    public string Author { get; set; } = "";
+
+    [JsonPropertyName("tool")]
+    public string Tool { get; set; } = "pen";
+
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "#ffffff";
+
+    /// <summary>Normalized like the coordinates, not pixels.</summary>
+    [JsonPropertyName("width")]
+    public double Width { get; set; }
+
+    [JsonPropertyName("points")]
+    public List<PaintPoint> Points { get; set; } = [];
+
+    [JsonPropertyName("done")]
+    public bool Done { get; set; }
+}
+
+public sealed class PaintBegin
+{
+    [JsonPropertyName("tool")]
+    public string Tool { get; set; } = "pen";
+
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "#ffffff";
+
+    [JsonPropertyName("width")]
+    public double Width { get; set; }
+
+    [JsonPropertyName("points")]
+    public List<PaintPoint> Points { get; set; } = [];
+}
+
+public sealed class PaintAppend
+{
+    [JsonPropertyName("stroke_id")]
+    public string StrokeId { get; set; } = "";
+
+    [JsonPropertyName("points")]
+    public List<PaintPoint> Points { get; set; } = [];
+}
+
+public sealed class PaintEnd
+{
+    [JsonPropertyName("stroke_id")]
+    public string StrokeId { get; set; } = "";
+}
+
+public sealed class PaintUndo
+{
+    [JsonPropertyName("stroke_id")]
+    public string StrokeId { get; set; } = "";
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+}
+
+public sealed class PaintClear
+{
+    /// <summary>"mine" or "all"; "all" needs moderation rights.</summary>
+    [JsonPropertyName("scope")]
+    public string Scope { get; set; } = "mine";
+}
+
+public sealed class PaintCleared
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("scope")]
+    public string Scope { get; set; } = "";
+
+    [JsonPropertyName("by")]
+    public string By { get; set; } = "";
+}
+
+public sealed class PaintState
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("strokes")]
+    public List<Stroke> Strokes { get; set; } = [];
+
+    [JsonPropertyName("max_strokes")]
+    public int MaxStrokes { get; set; }
 }
 
 public sealed class RoomJoinRequest
@@ -176,6 +382,44 @@ public sealed class ChatSend
 {
     [JsonPropertyName("text")]
     public string Text { get; set; } = "";
+}
+
+/// <summary>Pages backwards through a room's buffer.</summary>
+public sealed class ChatHistoryRequest
+{
+    /// <summary>The seq of the oldest message already held. Zero means "the newest page".</summary>
+    [JsonPropertyName("before_seq")]
+    public long BeforeSeq { get; set; }
+
+    [JsonPropertyName("limit")]
+    public int Limit { get; set; } = 50;
+}
+
+public sealed class ChatHistoryReply
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("messages")]
+    public List<ChatMessage> Messages { get; set; } = [];
+
+    [JsonPropertyName("has_more")]
+    public bool HasMore { get; set; }
+}
+
+public sealed class ChatTyping
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    [JsonPropertyName("typing")]
+    public bool Typing { get; set; }
 }
 
 public sealed class MediaSetState

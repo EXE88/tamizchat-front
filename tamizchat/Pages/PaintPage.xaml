@@ -7,16 +7,73 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer Padding="40,24,40,120">
-        <StackPanel Spacing="20" MaxWidth="900" HorizontalAlignment="Left">
-            <TextBlock
-                FontSize="34"
-                FontWeight="SemiBold"
-                Foreground="{StaticResource TcTextPrimaryBrush}"
-                Text="Paint board" />
-            <TextBlock
-                Foreground="{StaticResource TcTextSecondaryBrush}"
-                Text="A feature page: reached by drilling in from the bottom bar, and left again with the back button at the top left." />
-        </StackPanel>
-    </ScrollViewer>
+    <Grid Padding="24,8,24,110">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="2,0,2,10" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                <TextBlock
+                    FontSize="22"
+                    FontWeight="SemiBold"
+                    Foreground="{StaticResource TcTextPrimaryBrush}"
+                    Text="Paint board" />
+                <TextBlock
+                    x:Name="StatusLine"
+                    FontSize="12"
+                    Foreground="{StaticResource TcTextSecondaryBrush}" />
+            </StackPanel>
+
+            <!-- Colours and width. Kept small: the board is the point, not the tools. -->
+            <StackPanel
+                Grid.Column="1"
+                Orientation="Horizontal"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="14">
+                <StackPanel x:Name="Swatches" Orientation="Horizontal" Spacing="6" />
+
+                <Slider
+                    x:Name="WidthSlider"
+                    Width="110"
+                    Maximum="24"
+                    Minimum="2"
+                    TickFrequency="1"
+                    Value="4"
+                    VerticalAlignment="Center"
+                    ToolTipService.ToolTip="Brush width" />
+
+                <ToggleButton
+                    x:Name="EraserToggle"
+                    Padding="10,6"
+                    ToolTipService.ToolTip="Eraser">
+                    <FontIcon FontSize="15" Glyph="&#xE75C;" />
+                </ToggleButton>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Click="OnUndoClick" Content="Undo" />
+                <Button Click="OnClearMineClick" Content="Clear mine" />
+                <Button Click="OnClearAllClick" Content="Clear all" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Opaque, and clipped so strokes cannot spill past the rounded corners. -->
+        <Border
+            Grid.Row="1"
+            Background="{StaticResource TcBoardBrush}"
+            BorderBrush="{StaticResource TcBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource TcCardCornerRadius}">
+            <Grid x:Name="BoardHost" Background="Transparent" />
+        </Border>
+    </Grid>
 </Page>

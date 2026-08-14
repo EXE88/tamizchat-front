@@ -1,25 +1,23 @@
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using TamizChat.Core.Protocol;
 
 namespace TamizChat.Controls;
 
 /// <summary>
-/// One room in the grid: its name and headcount, over a showcase of the people
-/// inside it.
+/// One room in the grid: its name and headcount over the people inside it.
 ///
-/// The showcase fits as many avatars as the tile is wide and collapses the rest
-/// into a "+N" circle, so a busy room stays readable at a quarter of the screen.
+/// The people are laid out on the same subdivision the rooms are — one fills the
+/// space, two halve it, four make quarters, and past that it scrolls — so a cell
+/// is always a frame a camera feed can fill rather than a slot sized to an
+/// avatar.
 /// </summary>
 public sealed class RoomTile : Grid
 {
-    private const double AvatarSize = 44;
-    private const double AvatarGap = 8;
-
-    private readonly StackPanel _avatars;
+    private readonly MemberGrid _members;
+    private readonly ScrollViewer _scroller;
     private readonly TextBlock _title;
     private readonly TextBlock _count;
     private readonly TextBlock _empty;
@@ -30,10 +28,8 @@ public sealed class RoomTile : Grid
     {
         _room = room;
 
-        Padding = new Thickness(16);
+        Padding = new Thickness(14);
         Background = (Brush)Application.Current.Resources["TcSurfaceBrush"];
-        BorderThickness = new Thickness(isMine ? 2 : 1);
-        BorderBrush = (Brush)Application.Current.Resources[isMine ? "TcAccentBrush" : "TcBorderBrush"];
         CornerRadius = (CornerRadius)Application.Current.Resources["TcCardCornerRadius"];
 
         _title = new TextBlock
@@ -52,32 +48,41 @@ public sealed class RoomTile : Grid
             Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
         };
 
-        var header = new Grid();
+        var header = new Grid { Margin = new Thickness(2, 0, 2, 10) };
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(_title, 0);
-        Grid.SetColumn(_count, 1);
+        SetColumn(_title, 0);
+        SetColumn(_count, 1);
         header.Children.Add(_title);
         header.Children.Add(_count);
 
-        _avatars = new StackPanel
+        _members = new MemberGrid();
+
+        _scroller = new ScrollViewer
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = AvatarGap,
-            VerticalAlignment = VerticalAlignment.Center,
+            Content = _members,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollMode = ScrollMode.Disabled,
+
+            // Once this reaches its end the wheel carries on to the room grid
+            // behind it, so a nested scroller does not trap the pointer.
+            IsVerticalScrollChainingEnabled = true,
         };
+        _scroller.SizeChanged += (_, _) =>
+            _members.SetViewport(_scroller.ViewportWidth, _scroller.ViewportHeight);
 
         _empty = new TextBlock
         {
             Text = "Empty",
             FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
         };
 
-        var body = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        var body = new Grid();
         body.Children.Add(_empty);
-        body.Children.Add(_avatars);
+        body.Children.Add(_scroller);
 
         // Grid rather than Border as the base: Border is sealed in WinUI, and
         // Grid carries the same border, corner and padding properties.
@@ -88,9 +93,6 @@ public sealed class RoomTile : Grid
         Children.Add(header);
         Children.Add(body);
 
-        // The showcase depends on how wide the tile ended up, so it is rebuilt
-        // whenever that changes rather than assumed.
-        SizeChanged += (_, _) => BuildShowcase();
         DoubleTapped += (_, e) =>
         {
             e.Handled = true;
@@ -116,58 +118,11 @@ public sealed class RoomTile : Grid
         BorderThickness = new Thickness(isMine ? 2 : 1);
         BorderBrush = (Brush)Application.Current.Resources[isMine ? "TcAccentBrush" : "TcBorderBrush"];
 
-        BuildShowcase();
+        var hasMembers = room.Members.Count > 0;
+        _empty.Visibility = hasMembers ? Visibility.Collapsed : Visibility.Visible;
+        _scroller.Visibility = hasMembers ? Visibility.Visible : Visibility.Collapsed;
+
+        _members.SetMembers(room.Members);
+        _members.SetViewport(_scroller.ViewportWidth, _scroller.ViewportHeight);
     }
-
-    private void BuildShowcase()
-    {
-        _avatars.Children.Clear();
-
-        var members = _room.Members;
-        _empty.Visibility = members.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (members.Count == 0)
-        {
-            return;
-        }
-
-        // How many fit across the tile, leaving room for the "+N" circle.
-        var available = ActualWidth - Padding.Left - Padding.Right;
-        var perAvatar = AvatarSize + AvatarGap;
-        var fits = available > 0 ? Math.Max(1, (int)((available + AvatarGap) / perAvatar)) : members.Count;
-
-        var shown = members.Count <= fits ? members.Count : Math.Max(1, fits - 1);
-
-        for (var i = 0; i < shown; i++)
-        {
-            var member = members[i];
-            var avatar = new AvatarView(member.Username, AvatarSize);
-            avatar.SetMuted(member.Muted);
-            _avatars.Children.Add(avatar);
-        }
-
-        var hidden = members.Count - shown;
-        if (hidden > 0)
-        {
-            _avatars.Children.Add(Overflow(hidden));
-        }
-    }
-
-    private static Border Overflow(int count) => new()
-    {
-        Width = AvatarSize,
-        Height = AvatarSize,
-        CornerRadius = new CornerRadius(AvatarSize / 2),
-        Background = (Brush)Application.Current.Resources["TcSurfaceHoverBrush"],
-        BorderThickness = new Thickness(1),
-        BorderBrush = (Brush)Application.Current.Resources["TcBorderBrush"],
-        Child = new TextBlock
-        {
-            Text = $"+{count}",
-            FontSize = 14,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        },
-    };
 }

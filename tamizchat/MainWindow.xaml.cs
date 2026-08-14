@@ -113,6 +113,12 @@ public sealed partial class MainWindow : Window
         }
 
         EnterServer();
+
+        var inServerPage = Environment.GetEnvironmentVariable("TAMIZCHAT_START_PAGE");
+        if (inServerPage is "chat" or "paint")
+        {
+            OnNavItemInvoked(null, ShellItems.InServer.First(i => i.Key == inServerPage));
+        }
     }
 
     /// <summary>Drills into a server. The only move that uses a drill going in.</summary>
