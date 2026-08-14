@@ -5,6 +5,7 @@ using TamizChat.Controls;
 using TamizChat.Localization;
 using TamizChat.Navigation;
 using TamizChat.Pages;
+using TamizChat.Audio;
 using TamizChat.Services;
 using TamizChat.Video;
 using TamizChat.Theming;
@@ -232,7 +233,33 @@ public sealed partial class MainWindow : Window
             case "screen":
                 _ = SafelyAsync(() => ShareScreenAsync(e.IsOn, e.Item));
                 break;
+
+            // Menus report the chosen entry by its position in the item's list,
+            // found by index rather than by the label — the label is translated,
+            // so matching on it would break the moment the language changes.
+            case "effects":
+                if (IndexOfOption(e) is { } clip)
+                {
+                    _ = SafelyAsync(() => VoiceService.Instance.PlayEffectAsync((SoundEffect)clip));
+                }
+
+                break;
+
+            case "voice":
+                if (IndexOfOption(e) is { } preset)
+                {
+                    VoiceService.Instance.SetVoiceEffect((VoiceEffectKind)preset);
+                }
+
+                break;
         }
+    }
+
+    /// <summary>Where the chosen entry sits in its item's menu, or null if it is not there.</summary>
+    private static int? IndexOfOption(NavBarStateEventArgs e)
+    {
+        var index = e.Item.MenuOptions.ToList().IndexOf(e.Option ?? "");
+        return index < 0 ? null : index;
     }
 
     /// <summary>

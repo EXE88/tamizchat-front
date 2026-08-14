@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — F0 to F9 done
+Last updated: 2026-08-14 — F0 to F10 done
 
 ---
 
@@ -148,17 +148,78 @@ against the real backend and a real LiveKit:
 The microphone is no longer the untested half: the app captures from a real
 headset and publishes at exactly the expected rate.
 
-Camera capture is written but **never run against hardware** — this machine has
-no webcam. Everything downstream of it is proven by the test pattern, which goes
-through the identical publish path, so what is unverified is `CameraCapture`
-itself: device enumeration, format selection and the BGRA copy.
+**Camera is now verified against real hardware** (an HP HD Camera): 241 frames in
+15 s at 1280x720 reaching a subscriber, plus a local preview. Finding it took two
+real bugs, both of which had the same shape — the camera worked locally and
+published nothing:
+
+- **A track published at 0x0 kills the process.** `CameraCapture` only learned its
+  size from the first frame to arrive, but the caller publishes as soon as
+  `StartAsync` returns, so the size was still zero. libwebrtc does not throw for
+  that — it fails an assert and aborts, with no managed stack to catch. The size
+  now comes from the chosen *format*, and `MediaSession.StartVideoAsync` rejects
+  a non-positive size in managed code before it can reach native again.
+- **Never drop a frame for not matching the published size.** That guard silently
+  published nothing at all while the local preview looked perfect, which is a
+  horrible way to fail. The published size is only an initial hint, libwebrtc
+  handles a source changing size, and a driver delivering something other than
+  the format it was asked for is normal. What is checked now is the buffer
+  against its own claimed size, since a short buffer is an out-of-bounds read.
+
+**Phase F10 (audio effects) — done.** A voice changer and a soundboard, both
+in-process on our own capture path, exactly as the no-virtual-driver decision
+requires. Verified with `tamizsim fx` (offline measurement) and end to end: the
+app publishing with the robot voice and an airhorn mixed in delivered 1199 frames
+in 12 s to a listener — a clean 100/s, no drops.
+
+| Effect | Input | Measured |
+|--------|-------|----------|
+| None | 200 Hz | 198 Hz |
+| Deep | 200 Hz | 157 Hz |
+| Chipmunk | 200 Hz | 310 Hz |
+| Robot | 200 Hz | 250 Hz (ring-mod sideband) |
+| Radio | 200 Hz | 200 Hz, louder — the clipping |
+
+Remaining phase: F11 installer.
 
 **Phase F8 (localization) — done.** Every user-visible string in the app goes
 through the resource layer; 113 keys, English and Persian. Verified by running
 the app in Persian: Home, Settings and Chat all read Persian, the whole shell
 lays out right to left, and switching language takes effect without a restart.
 
-Remaining phases: F10 audio effects, F11 installer.
+
+### How the effects work
+
+- **The voice changer runs before the soundboard is mixed in.** The other order
+  would put the airhorn through the pitch shifter too, so choosing Chipmunk would
+  change what the clips sound like — and the clips are meant to be fixed,
+  recognisable sounds.
+- Pitch shifting is a **granular shifter**: the signal is written to a ring at the
+  normal rate and read at a different one, with two read heads half a window apart
+  crossfaded so the wrap is never heard. Cheap enough for every 10 ms frame with
+  no fourier transform.
+- Robot is **ring modulation**, not a vocoder. Two lines instead of a filter bank,
+  and it lands in the same place for a soundboard-grade effect.
+- Radio is a one-pole band-pass plus `tanh` soft clipping. Losing the bass is what
+  makes it read as "through a speaker"; `tanh` saturates smoothly, which is the
+  difference between overdriven and broken.
+- **The clips are synthesised, not shipped.** No licence, no asset folder, no
+  installer step. Applause is shaped noise, which is very nearly the real
+  mechanism — a crowd *is* hundreds of noise bursts.
+- **The user hears their own soundboard but never their own voice.** A voice
+  monitor is a loop at the round trip's delay and is disorienting to talk over; a
+  clip is something you triggered and expect to hear.
+- Pressing a soundboard button **unmutes first**. It is a deliberate act, and
+  doing nothing because the microphone happened to be off reads as a broken
+  button.
+- Menu choices are matched **by index, not by label** — labels are translated, so
+  matching on them would break the moment the language changes.
+- `tamizsim fx` runs both offline and prints dominant frequency and peak level.
+  That is how "does the DSP work" gets a number instead of an opinion; it caught
+  applause clipping at full scale.
+- `TAMIZCHAT_AUTOVOICE` and `TAMIZCHAT_AUTOEFFECT` trigger the two menus at
+  startup, because **a flyout cannot be driven from a script** — taking a
+  screenshot steals focus and dismisses it.
 
 ### How localization works
 
@@ -733,14 +794,13 @@ user saw nothing happen.
 - Odd dimensions are cropped away before publishing; chroma subsampling needs
   even ones.
 
-**Open question — screen share runs at about 5 frames a second.** Measured at a
-subscriber: 103 video frames in 20 s while audio in the same session was exactly
-100/s, so the connection is fine and something in the video path is the limit.
-Removing `CAPTUREBLT` moved it from 4.3 to 5.2, so the BitBlt flag is *not* the
-main cost. The prime suspect is `RoomOptions.AdaptiveStream`, which throttles for
-a subscriber that never signals it is rendering — the measuring tool is a console
-app, so this may be largely an artefact of how it was measured rather than what a
-real viewer sees. Confirm by measuring at the app before optimising the capture.
+**Screen share runs at about 5 frames a second, and it is the GDI capture.** The
+open question is now answered: the camera reaches the *same console subscriber*
+at ~16 fps (241 frames in 15 s), so `RoomOptions.AdaptiveStream` was not the
+limit and the suspicion was wrong. The cost is in `ScreenCapture` — a full-screen
+BitBlt plus a 3.7 MB `Marshal.Copy` every frame. Removing `CAPTUREBLT` only moved
+it from 4.3 to 5.2, so the flag was not the main cost either. Moving to
+`Windows.Graphics.Capture` is the real fix; it is contained to that one class.
 
 `ScreenCapture` is GDI on purpose: `Windows.Graphics.Capture` is the better API
 (hardware accelerated, single-window) but returns Direct3D surfaces, so it needs

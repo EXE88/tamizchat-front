@@ -115,6 +115,20 @@ public sealed class VoiceService
                 await SetCameraAsync(true).ConfigureAwait(true);
                 break;
         }
+
+        // Same idea for the two menus. A flyout cannot be driven from a script:
+        // taking a screenshot steals focus, which dismisses it.
+        if (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOVOICE") is { } preset
+            && Enum.TryParse<VoiceEffectKind>(preset, true, out var kind))
+        {
+            SetVoiceEffect(kind);
+        }
+
+        if (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOEFFECT") is { } name
+            && Enum.TryParse<SoundEffect>(name, true, out var clip))
+        {
+            await PlayEffectAsync(clip).ConfigureAwait(true);
+        }
     }
 
     /// <summary>
@@ -347,7 +361,71 @@ public sealed class VoiceService
         return ServerSession.Instance.SetMediaStateAsync(!IsMuted, IsCameraOn, IsScreenSharing);
     }
 
-    private void OnFrameReady(object? sender, short[] pcm) => _session?.SendCapturedFrame(pcm);
+    /// <summary>
+    /// The outgoing audio pipeline, in the order it has to happen.
+    ///
+    /// The voice changer runs first, on the voice alone, then the soundboard is
+    /// mixed on top. The other order would put the airhorn through the pitch
+    /// shifter as well, so switching to Chipmunk would also change what the
+    /// clips sound like — the clips are meant to be fixed, recognisable sounds.
+    /// </summary>
+    private void OnFrameReady(object? sender, short[] pcm)
+    {
+        Effect.Process(pcm);
+        var playing = Soundboard.MixInto(pcm);
+
+        _session?.SendCapturedFrame(pcm);
+
+        // The user hears their own soundboard, but never their own voice. Voice
+        // would be a monitor loop with the round trip's delay, which is
+        // disorienting to talk over; the clip is a thing you triggered and
+        // expect to hear.
+        if (playing && !IsDeafened)
+        {
+            _speakers.Submit("soundboard", pcm);
+        }
+
+        if (playing != _wasPlayingClip)
+        {
+            _wasPlayingClip = playing;
+            Raise();
+        }
+    }
+
+    private bool _wasPlayingClip;
+
+    /// <summary>The voice changer applied to the outgoing microphone.</summary>
+    public VoiceEffect Effect { get; } = new();
+
+    /// <summary>The built-in clips, mixed into the outgoing microphone.</summary>
+    public Soundboard Soundboard { get; } = new();
+
+    /// <summary>
+    /// Triggers a clip. Works while muted on purpose — pressing a soundboard
+    /// button is a deliberate act, and silently doing nothing because the
+    /// microphone happens to be off reads as a broken button.
+    /// </summary>
+    public async Task PlayEffectAsync(SoundEffect effect)
+    {
+        if (_session is null)
+        {
+            return;
+        }
+
+        if (IsMuted && CanSpeak)
+        {
+            await SetMutedAsync(false).ConfigureAwait(true);
+        }
+
+        Soundboard.Play(effect);
+        Raise();
+    }
+
+    public void SetVoiceEffect(VoiceEffectKind kind)
+    {
+        Effect.SetKind(kind);
+        Raise();
+    }
 
     private void OnFrameReceived(object? sender, RemoteAudioFrame frame) =>
         _speakers.Submit(frame.Identity, frame.Pcm);

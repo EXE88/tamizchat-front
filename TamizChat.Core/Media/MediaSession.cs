@@ -171,6 +171,17 @@ public sealed class MediaSession : IAsyncDisposable
             return;
         }
 
+        // Checked here rather than trusted from the caller: libwebrtc asserts on
+        // a zero-sized frame buffer and an assert there is a hard abort, not an
+        // exception — it kills the process with no stack a caller can catch. A
+        // camera that has not reported its size yet really did do this.
+        if (width <= 0 || height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(width),
+                $"a {kind} track cannot be published at {width}x{height}");
+        }
+
         var source = new VideoSource(width, height);
         var track = LocalVideoTrack.Create(kind == VideoKind.Camera ? "camera" : "screen", source);
 
@@ -225,9 +236,14 @@ public sealed class MediaSession : IAsyncDisposable
             return;
         }
 
-        // A frame whose size no longer matches what was published would be
-        // decoded as garbage, so it is dropped until the caller republishes.
-        if (width != publication.Width || height != publication.Height)
+        // What must match is the buffer against its own claimed size — a short
+        // buffer is an out-of-bounds read in native code. The *published* size is
+        // deliberately not enforced: it is only the initial hint, libwebrtc
+        // handles a source changing size, and a camera whose driver delivers
+        // something other than the format it was asked for is normal. Dropping
+        // on that mismatch silently published nothing at all while the local
+        // preview looked perfect, which is a horrible way to fail.
+        if (width <= 0 || height <= 0 || bgra.Length < width * height * 4)
         {
             return;
         }

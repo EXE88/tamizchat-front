@@ -80,6 +80,21 @@ public sealed class CameraCapture : IAsyncDisposable
             await source.SetFormatAsync(format);
         }
 
+        // The size has to be known **now**, from the format, not from the first
+        // frame to arrive. The caller publishes a track as soon as this returns,
+        // and a track published as 0x0 does not throw — it fails a check inside
+        // libwebrtc and takes the whole process down with it.
+        var chosen = format?.VideoFormat ?? source.CurrentFormat?.VideoFormat
+            ?? throw new InvalidOperationException("the camera reports no video format");
+
+        Width = (int)chosen.Width - ((int)chosen.Width % 2);
+        Height = (int)chosen.Height - ((int)chosen.Height % 2);
+
+        if (Width <= 0 || Height <= 0)
+        {
+            throw new InvalidOperationException("the camera reports an empty video format");
+        }
+
         var reader = await capture.CreateFrameReaderAsync(source, MediaEncodingSubtypes.Bgra8);
         reader.FrameArrived += OnFrameArrived;
         await reader.StartAsync();

@@ -93,6 +93,23 @@ internal static class AudioFormat
         return [.. output];
     }
 
+    /// <summary>
+    /// The rate everything on the wire uses.
+    ///
+    /// Declared here as well as in the protocol client so the effects and the
+    /// soundboard can compute in seconds without depending on Core — this
+    /// assembly is the one both the app and the console simulator share.
+    /// </summary>
+    public const int SampleRate = 48000;
+
+    /// <summary>One float in the range -1..1 to signed 16-bit, clipped not wrapped.</summary>
+    public static short ToPcm(float value) => value switch
+    {
+        >= 1f => short.MaxValue,
+        <= -1f => short.MinValue,
+        _ => (short)(value * 32767f),
+    };
+
     /// <summary>Float in the range -1..1 to signed 16-bit, clipped rather than wrapped.</summary>
     public static void ToPcm16(ReadOnlySpan<float> source, Span<short> destination)
     {

@@ -6,6 +6,7 @@ using TamizChat.Core.Protocol;
 // A fake user, so the client can be tested with more than one person in a room.
 //
 //   tamizsim check                     connect once, print what the server said, exit
+//   tamizsim fx                        run the voice changer and soundboard offline and measure them
 //   tamizsim run   [name] [room]       stay connected and behave like somebody who is there
 //   tamizsim paint [name] [room]       draw one streamed stroke on the room's board
 //   tamizsim file  [name] [room]       upload a small file into the room
@@ -19,6 +20,75 @@ var server = Environment.GetEnvironmentVariable("TAMIZSIM_SERVER") ?? "localhost
 var mode = args.Length > 0 ? args[0] : "check";
 var username = args.Length > 1 ? args[1] : "Sim";
 var roomName = args.Length > 2 ? args[2] : "Lobby";
+
+if (mode == "fx")
+{
+    // Runs the voice changer and the soundboard offline and prints what they
+    // produced. No microphone, no server, nobody listening — the point is that
+    // "does the DSP work" gets a number rather than an opinion.
+    Console.WriteLine("--- voice changer, on a 200 Hz tone ---");
+
+    foreach (var kind in Enum.GetValues<VoiceEffectKind>())
+    {
+        var effect = new VoiceEffect();
+        effect.SetKind(kind);
+
+        var processed = new List<short>();
+        var phase = 0.0;
+
+        for (var f = 0; f < 60; f++)
+        {
+            var frame = new short[480];
+            for (var i = 0; i < frame.Length; i++)
+            {
+                frame[i] = (short)(Math.Sin(phase) * 8000);
+                phase += 2 * Math.PI * 200 / 48000;
+            }
+
+            effect.Process(frame);
+            processed.AddRange(frame);
+        }
+
+        // The second half only, so the ring buffer has settled.
+        var tail = processed.Skip(processed.Count / 2).ToArray();
+        var crossings = 0;
+        for (var i = 1; i < tail.Length; i++)
+        {
+            if (tail[i - 1] < 0 != tail[i] < 0)
+            {
+                crossings++;
+            }
+        }
+
+        var hz = crossings / 2.0 / (tail.Length / 48000.0);
+        var rms = Math.Sqrt(tail.Select(v => (double)v * v).Average());
+        Console.WriteLine($"{kind,-10} dominant={hz,6:F0} Hz   rms={rms,7:F0}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine("--- soundboard ---");
+
+    foreach (var clip in Enum.GetValues<SoundEffect>())
+    {
+        var board = new Soundboard();
+        board.Play(clip);
+
+        var frames = 0;
+        var peak = 0;
+
+        while (board.IsPlaying && frames < 2000)
+        {
+            var frame = new short[480];
+            board.MixInto(frame);
+            peak = Math.Max(peak, frame.Max(v => Math.Abs((int)v)));
+            frames++;
+        }
+
+        Console.WriteLine($"{clip,-10} {frames * 10,5} ms   peak={peak,6}");
+    }
+
+    return 0;
+}
 
 var httpUrl = $"http://{server}";
 var wsUrl = $"ws://{server}/ws";
