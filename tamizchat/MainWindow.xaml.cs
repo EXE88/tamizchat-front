@@ -1,9 +1,12 @@
 using System.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using TamizChat.Controls;
+using TamizChat.Localization;
 using TamizChat.Navigation;
 using TamizChat.Pages;
 using TamizChat.Services;
+using TamizChat.Video;
 using TamizChat.Theming;
 
 namespace TamizChat;
@@ -36,6 +39,18 @@ public sealed partial class MainWindow : Window
         SizeAndCentre(appWindow, handle, 1180, 780);
 
         ThemeManager.Instance.Initialize(this);
+        Loc.Initialize(SettingsStore.Current.Language);
+        ApplyFlowDirection();
+
+        // A language change re-lays the whole shell, because flow direction is
+        // set on the root and the bar's labels are built in code.
+        Loc.LanguageChanged += (_, _) =>
+        {
+            ApplyFlowDirection();
+            NavBar.Retranslate();
+            SyncShell();
+        };
+
         ServerStore.Load();
 
         NavigationService.Instance.Initialize(ContentFrame);
@@ -73,6 +88,33 @@ public sealed partial class MainWindow : Window
         {
             RunSelfTest();
         }
+    }
+
+    /// <summary>
+    /// Mirrors the whole shell for Persian.
+    ///
+    /// Set on the root content rather than per page: FlowDirection inherits, so
+    /// one assignment turns the navigation bar, every page and every dialog
+    /// around together. Setting it per page leaves the bar facing the wrong way.
+    /// </summary>
+    private void ApplyFlowDirection()
+    {
+        if (Content is FrameworkElement root)
+        {
+            root.FlowDirection = Loc.FlowDirection;
+        }
+
+        // The title bar stays left to right even in Persian. Windows keeps the
+        // minimise/maximise/close buttons on the right whatever the app's flow
+        // direction is, and mirroring our own strip sends the back button and
+        // the title straight underneath them.
+        //
+        // This has to be the whole row, not just AppTitleBar. The back button
+        // deliberately sits *outside* AppTitleBar — anything inside the drag
+        // region never receives clicks — so setting it on AppTitleBar alone left
+        // the back arrow mirrored into the close button. That bug shipped once
+        // already; the fix is the parent, which both of them inherit from.
+        TitleRow.FlowDirection = FlowDirection.LeftToRight;
     }
 
     private async Task AutoJoinAsync(string room)
@@ -188,8 +230,40 @@ public sealed partial class MainWindow : Window
                 break;
 
             case "screen":
-                _ = SafelyAsync(() => VoiceService.Instance.SetScreenShareAsync(e.IsOn));
+                _ = SafelyAsync(() => ShareScreenAsync(e.IsOn, e.Item));
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Asks what to share, then shares it.
+    ///
+    /// The toggle is put back if the user cancels — otherwise the bar would show
+    /// screen sharing as on while nothing is being sent, which is the worst of
+    /// the three possible states.
+    /// </summary>
+    private async Task ShareScreenAsync(bool on, NavBarItem item)
+    {
+        if (!on)
+        {
+            await VoiceService.Instance.SetScreenShareAsync(false);
+            return;
+        }
+
+        var target = await SharePicker.ShowAsync(Content.XamlRoot);
+        if (target is null)
+        {
+            NavBar.SetToggle(item.Key, false);
+            return;
+        }
+
+        try
+        {
+            await VoiceService.Instance.SetScreenShareAsync(true, target);
+        }
+        catch (Exception)
+        {
+            NavBar.SetToggle(item.Key, false);
         }
     }
 

@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -11,6 +12,7 @@ public sealed partial class ServersPage : Page
     public ServersPage()
     {
         InitializeComponent();
+        Translate();
         Loaded += (_, _) => Refresh();
     }
 
@@ -48,10 +50,10 @@ public sealed partial class ServersPage : Page
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var edit = new Button { Content = "Edit" };
+        var edit = new Button { Content = Loc.Get("Servers.Edit") };
         edit.Click += async (_, _) => await EditAsync(server);
 
-        var remove = new Button { Content = "Remove" };
+        var remove = new Button { Content = Loc.Get("Servers.Remove") };
         remove.Click += async (_, _) => await RemoveAsync(server);
 
         actions.Children.Add(edit);
@@ -100,10 +102,10 @@ public sealed partial class ServersPage : Page
         var confirm = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "Remove server",
+            Title = Loc.Get("Servers.RemoveTitle"),
             Content = $"Remove \"{server.Name}\" from the list? This does not touch the server itself.",
-            PrimaryButtonText = "Remove",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = Loc.Get("Servers.Remove"),
+            CloseButtonText = Loc.Get("Servers.Cancel"),
             DefaultButton = ContentDialogButton.Close,
         };
 
@@ -123,7 +125,7 @@ public sealed partial class ServersPage : Page
         var name = new TextBox { Header = "Name", Text = entry.Name };
         var address = new TextBox { Header = "Address (host:port)", Text = entry.Address };
         var username = new TextBox { Header = "Username (optional)", Text = entry.Username };
-        var tls = new CheckBox { Content = "Use TLS (wss)", IsChecked = entry.UseTls };
+        var tls = new CheckBox { Content = Loc.Get("Servers.UseTls"), IsChecked = entry.UseTls };
 
         var panel = new StackPanel { Spacing = 12, Width = 360 };
         panel.Children.Add(name);
@@ -136,8 +138,8 @@ public sealed partial class ServersPage : Page
             XamlRoot = XamlRoot,
             Title = title,
             Content = panel,
-            PrimaryButtonText = "Save",
-            CloseButtonText = "Cancel",
+            PrimaryButtonText = Loc.Get("Servers.Save"),
+            CloseButtonText = Loc.Get("Servers.Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
 
@@ -154,4 +156,19 @@ public sealed partial class ServersPage : Page
     }
 
     private static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
+
+    /// <summary>
+    /// Reads this page's strings for the current language.
+    ///
+    /// Called from the constructor only. The language can be changed on the
+    /// Settings page, and the frame builds a fresh instance of every page on
+    /// navigation, so any page the user reaches afterwards is already correct.
+    /// </summary>
+    private void Translate()
+    {
+        TitleText.Text = Loc.Get("Servers.Title");
+        SubtitleText.Text = Loc.Get("Servers.Description");
+        AddButton.Content = Loc.Get("Servers.Add");
+    }
+
 }

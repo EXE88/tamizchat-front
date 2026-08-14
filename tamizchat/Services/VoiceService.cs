@@ -106,7 +106,10 @@ public sealed class VoiceService
         switch (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOSHARE"))
         {
             case "screen":
-                await SetScreenShareAsync(true).ConfigureAwait(true);
+                // No dialog on this path: it exists so the publishing side can
+                // be tested without a human, so it takes the first target.
+                await SetScreenShareAsync(true, ShareTargets.List().FirstOrDefault())
+                    .ConfigureAwait(true);
                 break;
             case "camera":
                 await SetCameraAsync(true).ConfigureAwait(true);
@@ -252,6 +255,7 @@ public sealed class VoiceService
             _camera.FrameReady -= OnCameraFrame;
             await _session.StopVideoAsync(VideoKind.Camera).ConfigureAwait(true);
             IsCameraOn = false;
+            RaiseLocalEnded(VideoKind.Camera);
             await ReportStateAsync().ConfigureAwait(true);
             return;
         }
@@ -266,7 +270,7 @@ public sealed class VoiceService
         await ReportStateAsync().ConfigureAwait(true);
     }
 
-    public async Task SetScreenShareAsync(bool on)
+    public async Task SetScreenShareAsync(bool on, ShareTarget? target = null)
     {
         if (_session is null || (on && !CanShareScreen) || on == IsScreenSharing)
         {
@@ -279,11 +283,12 @@ public sealed class VoiceService
             _screen.Stop();
             await _session.StopVideoAsync(VideoKind.Screen).ConfigureAwait(true);
             IsScreenSharing = false;
+            RaiseLocalEnded(VideoKind.Screen);
             await ReportStateAsync().ConfigureAwait(true);
             return;
         }
 
-        _screen.Start();
+        _screen.Start(target ?? throw new InvalidOperationException("nothing was chosen to share"));
         await _session.StartVideoAsync(VideoKind.Screen, _screen.Width, _screen.Height).ConfigureAwait(true);
         _screen.FrameReady += OnScreenFrame;
 
@@ -294,11 +299,47 @@ public sealed class VoiceService
     /// <summary>Whether this machine has a camera, so the toggle can be hidden if not.</summary>
     public static Task<bool> HasCameraAsync() => CameraCapture.IsAvailableAsync();
 
-    private void OnCameraFrame(object? sender, VideoFrameBuffer frame) =>
+    private void OnCameraFrame(object? sender, VideoFrameBuffer frame)
+    {
         _session?.SendVideoFrame(VideoKind.Camera, frame.Bgra, frame.Width, frame.Height);
+        RaiseLocal(VideoKind.Camera, frame);
+    }
 
-    private void OnScreenFrame(object? sender, VideoFrameBuffer frame) =>
+    private void OnScreenFrame(object? sender, VideoFrameBuffer frame)
+    {
         _session?.SendVideoFrame(VideoKind.Screen, frame.Bgra, frame.Width, frame.Height);
+        RaiseLocal(VideoKind.Screen, frame);
+    }
+
+    /// <summary>
+    /// Shows the user their own camera or screen in their own cell.
+    ///
+    /// Without this, turning screen sharing on looks like nothing happening:
+    /// LiveKit does not loop a published track back to its publisher, so the one
+    /// person who cannot see the share is the person sharing. That reads as a
+    /// broken button.
+    /// </summary>
+    private void RaiseLocal(VideoKind kind, VideoFrameBuffer frame)
+    {
+        var identity = ServerSession.Instance.MyUuid;
+        if (string.IsNullOrEmpty(identity))
+        {
+            return;
+        }
+
+        _ui.TryEnqueue(() => VideoFrameReceived?.Invoke(
+            this,
+            new RemoteVideoFrame(identity, kind, frame.Width, frame.Height, frame.Bgra)));
+    }
+
+    private void RaiseLocalEnded(VideoKind kind)
+    {
+        var identity = ServerSession.Instance.MyUuid;
+        if (!string.IsNullOrEmpty(identity))
+        {
+            VideoTrackEnded?.Invoke(this, new RemoteVideoFrame(identity, kind, 0, 0, []));
+        }
+    }
 
     private Task ReportStateAsync()
     {

@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -20,6 +21,7 @@ public sealed partial class HomePage : Page
     public HomePage()
     {
         InitializeComponent();
+        Translate();
         Loaded += (_, _) =>
         {
             Refresh();
@@ -91,7 +93,7 @@ public sealed partial class HomePage : Page
             {
                 FontSize = 12,
                 Foreground = Brush("TcTextSecondaryBrush"),
-                Text = "Checking…",
+                Text = Loc.Get("Home.Checking"),
             };
 
             var dot = new Ellipse
@@ -151,7 +153,7 @@ public sealed partial class HomePage : Page
 
         var join = new Button
         {
-            Content = "Join",
+            Content = Loc.Get("Home.Join"),
             VerticalAlignment = VerticalAlignment.Center,
             Padding = new Thickness(22, 8, 22, 8),
             Style = (Style)Application.Current.Resources["TcAccentButtonStyle"],
@@ -190,7 +192,7 @@ public sealed partial class HomePage : Page
     {
         join.IsEnabled = false;
         var original = status.Text;
-        status.Text = "Connecting…";
+        status.Text = Loc.Get("Home.Connecting");
 
         try
         {
@@ -200,7 +202,7 @@ public sealed partial class HomePage : Page
         }
         catch (Exception ex)
         {
-            status.Text = $"Could not connect: {ex.Message}";
+            status.Text = Loc.Get("Home.CouldNotConnect", ex.Message);
         }
         finally
         {
@@ -218,7 +220,7 @@ public sealed partial class HomePage : Page
 
         if (info is null)
         {
-            status.Text = "Offline";
+            status.Text = Loc.Get("Home.Offline");
             dot.Fill = Brush("TcDangerBrush");
             dot.Opacity = 1;
             return;
@@ -227,17 +229,17 @@ public sealed partial class HomePage : Page
         var parts = new List<string>
         {
             info.Name,
-            $"{info.OnlineUsers}/{info.MaxUsers} online",
+            Loc.Get("Home.OnlineCount", info.OnlineUsers, info.MaxUsers),
         };
 
         if (info.PasswordRequired)
         {
-            parts.Add("password required");
+            parts.Add(Loc.Get("Home.PasswordRequired"));
         }
 
         if (info.MediaEnabled)
         {
-            parts.Add("voice");
+            parts.Add(Loc.Get("Home.HasVoice"));
         }
 
         status.Text = string.Join("  ·  ", parts);
@@ -246,4 +248,20 @@ public sealed partial class HomePage : Page
     }
 
     private static Brush Brush(string key) => (Brush)Application.Current.Resources[key];
+
+    /// <summary>
+    /// Reads this page's strings for the current language.
+    ///
+    /// Called from the constructor only. The language can be changed on the
+    /// Settings page, and the frame builds a fresh instance of every page on
+    /// navigation, so any page the user reaches afterwards is already correct.
+    /// </summary>
+    private void Translate()
+    {
+        TitleText.Text = Loc.Get("Home.Title");
+        SubtitleText.Text = Loc.Get("Home.PickServer");
+        RefreshButton.Content = Loc.Get("Home.Refresh");
+        EmptyHint.Text = Loc.Get("Home.NoServers");
+    }
+
 }

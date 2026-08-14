@@ -29,17 +29,17 @@
                         FontSize="34"
                         FontWeight="SemiBold"
                         Foreground="{StaticResource TcTextPrimaryBrush}"
-                        Text="Home" />
+                        x:Name="TitleText" Text="Home" />
                     <TextBlock
                         Foreground="{StaticResource TcTextSecondaryBrush}"
-                        Text="Pick a server to join." />
+                        x:Name="SubtitleText" Text="Pick a server to join." />
                 </StackPanel>
 
                 <Button
                     Grid.Column="1"
                     VerticalAlignment="Bottom"
                     Click="OnRefreshClick"
-                    Content="Refresh" />
+                    x:Name="RefreshButton" Content="Refresh" />
             </Grid>
 
             <ItemsControl x:Name="ServerList">

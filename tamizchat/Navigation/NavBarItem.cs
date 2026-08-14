@@ -1,3 +1,5 @@
+using TamizChat.Localization;
+
 namespace TamizChat.Navigation;
 
 /// <summary>What happens when an item in the bottom bar is pressed.</summary>
@@ -27,7 +29,16 @@ public sealed class NavBarItem
 {
     public required string Key { get; init; }
 
-    public required string Label { get; init; }
+    /// <summary>
+    /// The resource key for the label, not the label itself.
+    ///
+    /// Items are declared once as static data, so holding translated text would
+    /// freeze them into whichever language was loaded first. Resolving at
+    /// display time means a language change costs a redraw and nothing more.
+    /// </summary>
+    public required string LabelKey { get; init; }
+
+    public string Label => Loc.Get(LabelKey);
 
     /// <summary>A Segoe Fluent Icons glyph.</summary>
     public required string Glyph { get; init; }
@@ -42,8 +53,10 @@ public sealed class NavBarItem
     /// <summary>Glyph shown in the off state; falls back to <see cref="Glyph"/>.</summary>
     public string? OffGlyph { get; init; }
 
-    /// <summary>Label shown in the off state; falls back to <see cref="Label"/>.</summary>
-    public string? OffLabel { get; init; }
+    /// <summary>Label key for the off state; falls back to <see cref="LabelKey"/>.</summary>
+    public string? OffLabelKey { get; init; }
+
+    public string OffLabel => OffLabelKey is null ? Label : Loc.Get(OffLabelKey);
 
     public bool StartsOn { get; init; }
 
@@ -56,7 +69,9 @@ public sealed class NavBarItem
 
     // --- menus ---
 
-    public IReadOnlyList<string> MenuOptions { get; init; } = [];
+    public IReadOnlyList<string> MenuOptionKeys { get; init; } = [];
+
+    public IReadOnlyList<string> MenuOptions => [.. MenuOptionKeys.Select(Loc.Get)];
 
     // --- commands ---
 

@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using TamizChat.Pages;
 
 namespace TamizChat.Navigation;
@@ -33,15 +34,15 @@ public static class ShellItems
     /// <summary>Home sits in the middle, with the list on one side and settings on the other.</summary>
     public static readonly IReadOnlyList<NavBarItem> PreServer =
     [
-        new() { Key = "servers", Glyph = GlyphCloud, Label = "Servers", Page = typeof(ServersPage) },
-        new() { Key = "home", Glyph = GlyphHome, Label = "Home", Page = typeof(HomePage) },
-        new() { Key = "settings", Glyph = GlyphSettings, Label = "Settings", Page = typeof(SettingsPage) },
+        new() { Key = "servers", Glyph = GlyphCloud, LabelKey = "Nav.Servers", Page = typeof(ServersPage) },
+        new() { Key = "home", Glyph = GlyphHome, LabelKey = "Nav.Home", Page = typeof(HomePage) },
+        new() { Key = "settings", Glyph = GlyphSettings, LabelKey = "Nav.Settings", Page = typeof(SettingsPage) },
     ];
 
     public static readonly IReadOnlyList<NavBarItem> InServer =
     [
-        new() { Key = "room", Glyph = GlyphGrid, Label = "Room", Page = typeof(ServerPage) },
-        new() { Key = "chat", Glyph = GlyphMessage, Label = "Chat", Page = typeof(ChatPage) },
+        new() { Key = "room", Glyph = GlyphGrid, LabelKey = "Nav.Room", Page = typeof(ServerPage) },
+        new() { Key = "chat", Glyph = GlyphMessage, LabelKey = "Nav.Chat", Page = typeof(ChatPage) },
 
         // Live by default: being heard is the normal state, so only the muted
         // state is called out.
@@ -49,8 +50,8 @@ public static class ShellItems
         {
             Key = "mic",
             Glyph = GlyphMicrophone,
-            Label = "Mic",
-            OffLabel = "Muted",
+            LabelKey = "Nav.Mic",
+            OffLabelKey = "Nav.Muted",
             Kind = NavItemKind.Toggle,
             StartsOn = true,
             WarnWhenOff = true,
@@ -60,40 +61,40 @@ public static class ShellItems
             Key = "speaker",
             Glyph = GlyphVolume,
             OffGlyph = GlyphMute,
-            Label = "Speaker",
-            OffLabel = "Deafened",
+            LabelKey = "Nav.Speaker",
+            OffLabelKey = "Nav.Deafened",
             Kind = NavItemKind.Toggle,
             StartsOn = true,
             WarnWhenOff = true,
         },
 
         // Off by default: broadcasting is the notable state, so it gets the pill.
-        new() { Key = "camera", Glyph = GlyphVideo, Label = "Camera", Kind = NavItemKind.Toggle },
-        new() { Key = "screen", Glyph = GlyphProject, Label = "Screen", Kind = NavItemKind.Toggle },
+        new() { Key = "camera", Glyph = GlyphVideo, LabelKey = "Nav.Camera", Kind = NavItemKind.Toggle },
+        new() { Key = "screen", Glyph = GlyphProject, LabelKey = "Nav.Screen", Kind = NavItemKind.Toggle },
 
         new()
         {
             Key = "effects",
             Glyph = GlyphMusic,
-            Label = "Effects",
+            LabelKey = "Nav.Effects",
             Kind = NavItemKind.Menu,
-            MenuOptions = ["Airhorn", "Applause", "Drum roll", "Rimshot", "Crickets"],
+            MenuOptionKeys = ["Effect.Airhorn", "Effect.Applause", "Effect.DrumRoll", "Effect.Rimshot", "Effect.Crickets"],
         },
         new()
         {
             Key = "voice",
             Glyph = GlyphBolt,
-            Label = "Voice",
+            LabelKey = "Nav.Voice",
             Kind = NavItemKind.Menu,
-            MenuOptions = ["None", "Deep", "Chipmunk", "Robot", "Radio"],
+            MenuOptionKeys = ["VoiceFx.None", "VoiceFx.Deep", "VoiceFx.Chipmunk", "VoiceFx.Robot", "VoiceFx.Radio"],
         },
 
-        new() { Key = "paint", Glyph = GlyphEdit, Label = "Paint", Page = typeof(PaintPage) },
+        new() { Key = "paint", Glyph = GlyphEdit, LabelKey = "Nav.Paint", Page = typeof(PaintPage) },
         new()
         {
             Key = "disconnect",
             Glyph = GlyphCancel,
-            Label = "Disconnect",
+            LabelKey = "Nav.Disconnect",
             Kind = NavItemKind.Command,
             IsDangerous = true,
         },

@@ -16,10 +16,14 @@ namespace TamizChat.Video;
 public sealed class ScreenCapture : IDisposable
 {
     private const int SrcCopy = 0x00CC0020;
-    private const int CaptureBlt = 0x40000000;
+    private const int PwRenderFullContent = 0x00000002;
 
     private readonly object _gate = new();
     private CancellationTokenSource? _running;
+
+    private ShareTarget? _target;
+    private int _originX;
+    private int _originY;
 
     private nint _screenDc;
     private nint _memoryDc;
@@ -42,21 +46,42 @@ public sealed class ScreenCapture : IDisposable
     /// of a full-screen copy is high enough that chasing 30 buys a lot of CPU for
     /// very little that anyone would notice.
     /// </summary>
-    public void Start(int fps = 15)
+    public void Start(ShareTarget target, int fps = 15)
     {
         if (_running is not null)
         {
             return;
         }
 
-        // The whole virtual screen would include every monitor side by side; the
-        // primary one is what people mean by "my screen".
-        Width = GetSystemMetrics(0);
-        Height = GetSystemMetrics(1);
+        _target = target;
+
+        if (target.IsWindow)
+        {
+            GetWindowRect(target.Window, out var bounds);
+            Width = bounds.Right - bounds.Left;
+            Height = bounds.Bottom - bounds.Top;
+            _originX = 0;
+            _originY = 0;
+        }
+        else
+        {
+            // A monitor is captured from the desktop DC at its own offset, so a
+            // second screen to the right of the first is not captured as the
+            // first one all over again.
+            Width = target.Width;
+            Height = target.Height;
+            _originX = target.X;
+            _originY = target.Y;
+        }
 
         // Odd dimensions break the chroma subsampling every video codec does.
         Width -= Width % 2;
         Height -= Height % 2;
+
+        if (Width <= 0 || Height <= 0)
+        {
+            throw new InvalidOperationException("that window has nothing to capture");
+        }
 
         _screenDc = GetDC(nint.Zero);
         _memoryDc = CreateCompatibleDC(_screenDc);
@@ -111,6 +136,7 @@ public sealed class ScreenCapture : IDisposable
             }
 
             _pixels = nint.Zero;
+            _target = null;
         }
     }
 
@@ -132,14 +158,25 @@ public sealed class ScreenCapture : IDisposable
                     return;
                 }
 
-                // Without CAPTUREBLT. That flag pulls in layered windows but
-                // forces a full desktop composition on every call, so it is the
-                // expensive option and this path is already the slow one.
-                //
-                // Measured honestly: dropping it moved a subscriber from about
-                // 4.3 to 5.2 frames a second, so it was *not* the main cost and
-                // something else is the limit. See MEMORY for the open question.
-                BitBlt(_memoryDc, 0, 0, Width, Height, _screenDc, 0, 0, SrcCopy);
+                if (_target?.IsWindow == true)
+                {
+                    // PrintWindow asks the window to draw itself, so it works
+                    // even when the window is behind another one. The flag is
+                    // what makes it work for hardware-composed content — without
+                    // it, modern apps come back blank.
+                    PrintWindow(_target.Window, _memoryDc, PwRenderFullContent);
+                }
+                else
+                {
+                    // Without CAPTUREBLT. That flag pulls in layered windows but
+                    // forces a full desktop composition on every call, so it is
+                    // the expensive option and this path is already the slow one.
+                    //
+                    // Measured honestly: dropping it moved a subscriber from
+                    // about 4.3 to 5.2 frames a second, so it was *not* the main
+                    // cost. See MEMORY for the open question.
+                    BitBlt(_memoryDc, 0, 0, Width, Height, _screenDc, _originX, _originY, SrcCopy);
+                }
                 Marshal.Copy(_pixels, buffer, 0, buffer.Length);
             }
 
@@ -170,7 +207,10 @@ public sealed class ScreenCapture : IDisposable
     }
 
     [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int index);
+    private static extern bool GetWindowRect(nint window, out ShareTargets.Rect rect);
+
+    [DllImport("user32.dll")]
+    private static extern bool PrintWindow(nint window, nint dc, uint flags);
 
     [DllImport("user32.dll")]
     private static extern nint GetDC(nint window);

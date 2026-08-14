@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /></xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Nav.Servers" xml:space="preserve">
+    <value>سرورها</value>
+  </data>
+  <data name="Nav.Home" xml:space="preserve">
+    <value>خانه</value>
+  </data>
+  <data name="Nav.Settings" xml:space="preserve">
+    <value>تنظیمات</value>
+  </data>
+  <data name="Nav.Room" xml:space="preserve">
+    <value>اتاق</value>
+  </data>
+  <data name="Nav.Chat" xml:space="preserve">
+    <value>گفت‌وگو</value>
+  </data>
+  <data name="Nav.Mic" xml:space="preserve">
+    <value>میکروفون</value>
+  </data>
+  <data name="Nav.Muted" xml:space="preserve">
+    <value>بی‌صدا</value>
+  </data>
+  <data name="Nav.Speaker" xml:space="preserve">
+    <value>بلندگو</value>
+  </data>
+  <data name="Nav.Deafened" xml:space="preserve">
+    <value>ناشنوا</value>
+  </data>
+  <data name="Nav.Camera" xml:space="preserve">
+    <value>دوربین</value>
+  </data>
+  <data name="Nav.Screen" xml:space="preserve">
+    <value>صفحه</value>
+  </data>
+  <data name="Nav.Effects" xml:space="preserve">
+    <value>افکت‌ها</value>
+  </data>
+  <data name="Nav.Voice" xml:space="preserve">
+    <value>تغییر صدا</value>
+  </data>
+  <data name="Nav.Paint" xml:space="preserve">
+    <value>نقاشی</value>
+  </data>
+  <data name="Nav.Disconnect" xml:space="preserve">
+    <value>قطع اتصال</value>
+  </data>
+  <data name="Nav.More" xml:space="preserve">
+    <value>بیشتر</value>
+  </data>
+  <data name="Effect.Airhorn" xml:space="preserve">
+    <value>بوق</value>
+  </data>
+  <data name="Effect.Applause" xml:space="preserve">
+    <value>تشویق</value>
+  </data>
+  <data name="Effect.DrumRoll" xml:space="preserve">
+    <value>نقاره</value>
+  </data>
+  <data name="Effect.Rimshot" xml:space="preserve">
+    <value>ضربه طبل</value>
+  </data>
+  <data name="Effect.Crickets" xml:space="preserve">
+    <value>جیرجیرک</value>
+  </data>
+  <data name="VoiceFx.None" xml:space="preserve">
+    <value>بدون تغییر</value>
+  </data>
+  <data name="VoiceFx.Deep" xml:space="preserve">
+    <value>بم</value>
+  </data>
+  <data name="VoiceFx.Chipmunk" xml:space="preserve">
+    <value>زیر</value>
+  </data>
+  <data name="VoiceFx.Robot" xml:space="preserve">
+    <value>رباتیک</value>
+  </data>
+  <data name="VoiceFx.Radio" xml:space="preserve">
+    <value>رادیویی</value>
+  </data>
+  <data name="App.Name" xml:space="preserve">
+    <value>تمیزچت</value>
+  </data>
+  <data name="App.TitleWithServer" xml:space="preserve">
+    <value>تمیزچت — {0}</value>
+  </data>
+  <data name="Home.Title" xml:space="preserve">
+    <value>خانه</value>
+  </data>
+  <data name="Home.PickServer" xml:space="preserve">
+    <value>یک سرور برای پیوستن انتخاب کنید.</value>
+  </data>
+  <data name="Home.NoServers" xml:space="preserve">
+    <value>هنوز سروری ذخیره نشده. از صفحه سرورها یکی اضافه کنید.</value>
+  </data>
+  <data name="Home.Join" xml:space="preserve">
+    <value>پیوستن</value>
+  </data>
+  <data name="Home.Refresh" xml:space="preserve">
+    <value>تازه‌سازی</value>
+  </data>
+  <data name="Home.Online" xml:space="preserve">
+    <value>آنلاین</value>
+  </data>
+  <data name="Home.Offline" xml:space="preserve">
+    <value>آفلاین</value>
+  </data>
+  <data name="Home.Checking" xml:space="preserve">
+    <value>در حال بررسی...</value>
+  </data>
+  <data name="Servers.Title" xml:space="preserve">
+    <value>سرورها</value>
+  </data>
+  <data name="Servers.Description" xml:space="preserve">
+    <value>سرورهای ذخیره‌شده را اضافه، ویرایش و حذف کنید. از خانه به آن‌ها بپیوندید.</value>
+  </data>
+  <data name="Servers.Add" xml:space="preserve">
+    <value>افزودن سرور</value>
+  </data>
+  <data name="Servers.Edit" xml:space="preserve">
+    <value>ویرایش</value>
+  </data>
+  <data name="Servers.Remove" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Servers.Name" xml:space="preserve">
+    <value>نام</value>
+  </data>
+  <data name="Servers.Address" xml:space="preserve">
+    <value>نشانی</value>
+  </data>
+  <data name="Servers.Port" xml:space="preserve">
+    <value>درگاه</value>
+  </data>
+  <data name="Servers.Username" xml:space="preserve">
+    <value>نام کاربری</value>
+  </data>
+  <data name="Servers.Save" xml:space="preserve">
+    <value>ذخیره</value>
+  </data>
+  <data name="Servers.Cancel" xml:space="preserve">
+    <value>انصراف</value>
+  </data>
+  <data name="Settings.Title" xml:space="preserve">
+    <value>تنظیمات</value>
+  </data>
+  <data name="Settings.Appearance" xml:space="preserve">
+    <value>ظاهر</value>
+  </data>
+  <data name="Settings.Theme" xml:space="preserve">
+    <value>پوسته</value>
+  </data>
+  <data name="Settings.Mode" xml:space="preserve">
+    <value>حالت</value>
+  </data>
+  <data name="Settings.Background" xml:space="preserve">
+    <value>پس‌زمینه</value>
+  </data>
+  <data name="Settings.BackdropHelp" xml:space="preserve">
+    <value>شیشه‌ای پیش‌فرض است. مات آرام‌تر است؛ حالت‌های «زیاد» بیشتر از پشت پنجره را نشان می‌دهند.</value>
+  </data>
+  <data name="Settings.Language" xml:space="preserve">
+    <value>زبان</value>
+  </data>
+  <data name="Settings.LanguageHelp" xml:space="preserve">
+    <value>فارسی چیدمان برنامه را راست‌به‌چپ می‌کند.</value>
+  </data>
+  <data name="Settings.Preview" xml:space="preserve">
+    <value>پیش‌نمایش</value>
+  </data>
+  <data name="Settings.Accent" xml:space="preserve">
+    <value>رنگ تاکیدی</value>
+  </data>
+  <data name="Settings.StandardButton" xml:space="preserve">
+    <value>دکمه معمولی</value>
+  </data>
+  <data name="Settings.SecondaryText" xml:space="preserve">
+    <value>متن ثانویه روی یک سطح، برای سنجش کنتراست.</value>
+  </data>
+  <data name="Theme.SaltAndPepper" xml:space="preserve">
+    <value>نمک و فلفل</value>
+  </data>
+  <data name="Theme.VioletAndLavender" xml:space="preserve">
+    <value>بنفش و اسطوخودوس</value>
+  </data>
+  <data name="Theme.CarbonAndLime" xml:space="preserve">
+    <value>کربن و لیمو</value>
+  </data>
+  <data name="Mode.FollowWindows" xml:space="preserve">
+    <value>تبعیت از ویندوز</value>
+  </data>
+  <data name="Mode.Light" xml:space="preserve">
+    <value>روشن</value>
+  </data>
+  <data name="Mode.Dark" xml:space="preserve">
+    <value>تیره</value>
+  </data>
+  <data name="Backdrop.Matte" xml:space="preserve">
+    <value>مات</value>
+  </data>
+  <data name="Backdrop.MatteHigh" xml:space="preserve">
+    <value>مات زیاد</value>
+  </data>
+  <data name="Backdrop.Glass" xml:space="preserve">
+    <value>شیشه‌ای</value>
+  </data>
+  <data name="Backdrop.GlassHigh" xml:space="preserve">
+    <value>شیشه‌ای زیاد</value>
+  </data>
+  <data name="Language.English" xml:space="preserve">
+    <value>انگلیسی</value>
+  </data>
+  <data name="Language.Persian" xml:space="preserve">
+    <value>فارسی</value>
+  </data>
+  <data name="Server.ShowAllRooms" xml:space="preserve">
+    <value>نمایش همه اتاق‌ها</value>
+  </data>
+  <data name="Server.FocusMyRoom" xml:space="preserve">
+    <value>تمرکز روی اتاق من</value>
+  </data>
+  <data name="Server.NotConnected" xml:space="preserve">
+    <value>متصل نیست.</value>
+  </data>
+  <data name="Server.NoRooms" xml:space="preserve">
+    <value>این سرور هنوز اتاقی ندارد.</value>
+  </data>
+  <data name="Server.Empty" xml:space="preserve">
+    <value>خالی</value>
+  </data>
+  <data name="Server.StatusInRoom" xml:space="preserve">
+    <value>در {0} · {1} اتاق · {2} آنلاین</value>
+  </data>
+  <data name="Server.StatusNoRoom" xml:space="preserve">
+    <value>{0} اتاق · {1} آنلاین · در هیچ اتاقی نیستید</value>
+  </data>
+  <data name="Server.CouldNotJoin" xml:space="preserve">
+    <value>پیوستن ممکن نشد: {0}</value>
+  </data>
+  <data name="Chat.Title" xml:space="preserve">
+    <value>گفت‌وگو</value>
+  </data>
+  <data name="Chat.WriteMessage" xml:space="preserve">
+    <value>پیامی بنویسید</value>
+  </data>
+  <data name="Chat.Send" xml:space="preserve">
+    <value>ارسال</value>
+  </data>
+  <data name="Chat.Attach" xml:space="preserve">
+    <value>پیوست</value>
+  </data>
+  <data name="Chat.Typing" xml:space="preserve">
+    <value>{0} در حال نوشتن...</value>
+  </data>
+  <data name="Chat.TypingMany" xml:space="preserve">
+    <value>{0} نفر در حال نوشتن...</value>
+  </data>
+  <data name="Chat.NoMessages" xml:space="preserve">
+    <value>هنوز پیامی نیست.</value>
+  </data>
+  <data name="Paint.Title" xml:space="preserve">
+    <value>تخته نقاشی</value>
+  </data>
+  <data name="Paint.Undo" xml:space="preserve">
+    <value>واگرد</value>
+  </data>
+  <data name="Paint.ClearMine" xml:space="preserve">
+    <value>پاک کردن مال من</value>
+  </data>
+  <data name="Paint.ClearAll" xml:space="preserve">
+    <value>پاک کردن همه</value>
+  </data>
+  <data name="Paint.Pen" xml:space="preserve">
+    <value>قلم</value>
+  </data>
+  <data name="Paint.Eraser" xml:space="preserve">
+    <value>پاک‌کن</value>
+  </data>
+  <data name="Share.Title" xml:space="preserve">
+    <value>اشتراک صفحه</value>
+  </data>
+  <data name="Share.Share" xml:space="preserve">
+    <value>اشتراک</value>
+  </data>
+  <data name="Share.Cancel" xml:space="preserve">
+    <value>انصراف</value>
+  </data>
+  <data name="Share.MainScreen" xml:space="preserve">
+    <value>صفحه اصلی</value>
+  </data>
+  <data name="Share.ScreenN" xml:space="preserve">
+    <value>صفحه {0}</value>
+  </data>
+  <data name="Share.ScreenSubtitle" xml:space="preserve">
+    <value>صفحه · {0}x{1}</value>
+  </data>
+  <data name="Share.Window" xml:space="preserve">
+    <value>پنجره</value>
+  </data>
+  <data name="Share.NothingChosen" xml:space="preserve">
+    <value>چیزی برای اشتراک انتخاب نشد.</value>
+  </data>
+  <data name="Share.NoCamera" xml:space="preserve">
+    <value>دوربینی متصل نیست.</value>
+  </data>
+  <data name="Home.Connecting" xml:space="preserve">
+    <value>در حال اتصال...</value>
+  </data>
+  <data name="Home.CouldNotConnect" xml:space="preserve">
+    <value>اتصال ممکن نشد: {0}</value>
+  </data>
+  <data name="Servers.UseTls" xml:space="preserve">
+    <value>استفاده از TLS (wss)</value>
+  </data>
+  <data name="Servers.RemoveTitle" xml:space="preserve">
+    <value>حذف سرور</value>
+  </data>
+  <data name="Chat.Open" xml:space="preserve">
+    <value>باز کردن</value>
+  </data>
+  <data name="Paint.JoinToDraw" xml:space="preserve">
+    <value>برای نقاشی به یک اتاق بپیوندید.</value>
+  </data>
+  <data name="Chat.RoomSubtitle" xml:space="preserve">
+    <value>{0} نفر در اتاق · با خروج همه، پیام‌ها پاک می‌شوند</value>
+  </data>
+  <data name="Chat.Placeholder" xml:space="preserve">
+    <value>هنوز پیامی نیست. چیزی بگویید.</value>
+  </data>
+  <data name="Chat.JoinToTalk" xml:space="preserve">
+    <value>برای گفت‌وگو به یک اتاق بپیوندید.</value>
+  </data>
+  <data name="Home.OnlineCount" xml:space="preserve">
+    <value>{0}/{1} آنلاین</value>
+  </data>
+  <data name="Home.PasswordRequired" xml:space="preserve">
+    <value>نیازمند رمز</value>
+  </data>
+  <data name="Home.HasVoice" xml:space="preserve">
+    <value>صوت</value>
+  </data>
+</root>

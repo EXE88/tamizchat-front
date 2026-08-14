@@ -21,7 +21,11 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <!--
+            The whole title row is forced left to right in code, including the
+            back button. See ApplyFlowDirection.
+        -->
+        <Grid x:Name="TitleRow" Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />

@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -82,7 +83,7 @@ public sealed class RoomTile : Grid
 
         _empty = new TextBlock
         {
-            Text = "Empty",
+            Text = Loc.Get("Server.Empty"),
             FontSize = 13,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,

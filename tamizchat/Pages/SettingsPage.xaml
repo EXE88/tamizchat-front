@@ -13,16 +13,16 @@
                 FontSize="34"
                 FontWeight="SemiBold"
                 Foreground="{StaticResource TcTextPrimaryBrush}"
-                Text="Settings" />
+                x:Name="Title" Text="Settings" />
 
             <TextBlock
                 FontSize="19"
                 FontWeight="SemiBold"
                 Foreground="{StaticResource TcTextPrimaryBrush}"
-                Text="Appearance" />
+                x:Name="AppearanceLabel" Text="Appearance" />
 
             <StackPanel Spacing="6">
-                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Theme" />
+                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" x:Name="ThemeLabel" Text="Theme" />
                 <ComboBox x:Name="ThemeBox" HorizontalAlignment="Stretch" SelectionChanged="OnThemeChanged">
                     <ComboBoxItem Content="Salt and Pepper" />
                     <ComboBoxItem Content="Violet and Lavender" />
@@ -31,7 +31,7 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Mode" />
+                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" x:Name="ModeLabel" Text="Mode" />
                 <ComboBox x:Name="ModeBox" HorizontalAlignment="Stretch" SelectionChanged="OnModeChanged">
                     <ComboBoxItem Content="Follow Windows" />
                     <ComboBoxItem Content="Light" />
@@ -40,7 +40,7 @@
             </StackPanel>
 
             <StackPanel Spacing="6">
-                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" Text="Background" />
+                <TextBlock Foreground="{StaticResource TcTextSecondaryBrush}" x:Name="BackgroundLabel" Text="Background" />
                 <ComboBox x:Name="BackdropBox" HorizontalAlignment="Stretch" SelectionChanged="OnBackdropChanged">
                     <ComboBoxItem Content="Matte" />
                     <ComboBoxItem Content="Matte High" />
@@ -48,9 +48,23 @@
                     <ComboBoxItem Content="Glass High" />
                 </ComboBox>
                 <TextBlock
+                    x:Name="BackdropHelp"
                     FontSize="12"
                     Foreground="{StaticResource TcTextSecondaryBrush}"
                     Text="Glass is the default. Matte is calmer; the High variants show more of what is behind the window." />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="LanguageLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Language" />
+                <ComboBox x:Name="LanguageBox" HorizontalAlignment="Stretch" SelectionChanged="OnLanguageChanged">
+                    <ComboBoxItem Content="English" />
+                    <ComboBoxItem Content="Persian" />
+                </ComboBox>
+                <TextBlock
+                    x:Name="LanguageHelp"
+                    FontSize="12"
+                    Foreground="{StaticResource TcTextSecondaryBrush}"
+                    Text="Persian lays the app out right to left." />
             </StackPanel>
 
             <Border
@@ -64,18 +78,18 @@
                         FontSize="16"
                         FontWeight="SemiBold"
                         Foreground="{StaticResource TcTextPrimaryBrush}"
-                        Text="Preview" />
+                        x:Name="PreviewLabel" Text="Preview" />
                     <TextBlock
                         Foreground="{StaticResource TcTextSecondaryBrush}"
-                        Text="Secondary text on a surface, so contrast can be judged." />
+                        x:Name="SecondaryText" Text="Secondary text on a surface, so contrast can be judged." />
                     <StackPanel Orientation="Horizontal" Spacing="10">
                         <Border
                             Padding="14,7"
                             Background="{StaticResource TcAccentBrush}"
                             CornerRadius="8">
-                            <TextBlock Foreground="{StaticResource TcOnAccentBrush}" Text="Accent" />
+                            <TextBlock x:Name="AccentLabel" Foreground="{StaticResource TcOnAccentBrush}" Text="Accent" />
                         </Border>
-                        <Button Content="Standard button" />
+                        <Button x:Name="StandardButton" Content="Standard button" />
                     </StackPanel>
                 </StackPanel>
             </Border>

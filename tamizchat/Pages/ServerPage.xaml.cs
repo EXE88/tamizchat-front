@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using TamizChat.Controls;
@@ -122,12 +123,12 @@ public sealed partial class ServerPage : Page
         var session = ServerSession.Instance;
 
         ServerTitle.Text = string.IsNullOrEmpty(session.ServerName)
-            ? session.Server?.Name ?? "Server"
+            ? session.Server?.Name ?? Loc.Get("Nav.Room")
             : session.ServerName;
 
         if (!session.IsConnected)
         {
-            Message.Text = "Not connected.";
+            Message.Text = Loc.Get("Server.NotConnected");
             Message.Visibility = Visibility.Visible;
             GridScroller.Visibility = Visibility.Collapsed;
             ExpandButton.Visibility = Visibility.Collapsed;
@@ -137,17 +138,17 @@ public sealed partial class ServerPage : Page
 
         var rooms = session.Rooms;
         Message.Visibility = rooms.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        Message.Text = "This server has no rooms yet.";
+        Message.Text = Loc.Get("Server.NoRooms");
         GridScroller.Visibility = rooms.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
         var inRoom = session.MyRoom;
         StatusLine.Text = inRoom is null
-            ? $"{rooms.Count} rooms · {session.Users.Count} online · not in a room"
-            : $"In {inRoom.Name} · {rooms.Count} rooms · {session.Users.Count} online";
+            ? Loc.Get("Server.StatusNoRoom", rooms.Count, session.Users.Count)
+            : Loc.Get("Server.StatusInRoom", inRoom.Name, rooms.Count, session.Users.Count);
 
         // The expand control only means anything while a room has taken over.
         ExpandButton.Visibility = inRoom is null ? Visibility.Collapsed : Visibility.Visible;
-        ExpandButton.Content = _showAll ? "Focus my room" : "Show all rooms";
+        ExpandButton.Content = Loc.Get(_showAll ? "Server.FocusMyRoom" : "Server.ShowAllRooms");
 
         SyncTiles(rooms, session.MyRoomId);
         Relayout();
@@ -187,7 +188,7 @@ public sealed partial class ServerPage : Page
         }
         catch (Exception ex)
         {
-            StatusLine.Text = $"Could not join: {ex.Message}";
+            StatusLine.Text = Loc.Get("Server.CouldNotJoin", ex.Message);
         }
     }
 

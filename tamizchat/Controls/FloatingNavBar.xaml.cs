@@ -74,6 +74,38 @@ public sealed partial class FloatingNavBar : UserControl
 
     public bool IsOn(string key) => _toggles.TryGetValue(key, out var on) && on;
 
+    /// <summary>
+    /// Forces a toggle back without raising <see cref="StateChanged"/>.
+    ///
+    /// For the case where the action behind a toggle did not happen — a share
+    /// the user cancelled, a camera that would not open — so the button has to
+    /// stop claiming it did.
+    /// </summary>
+    public void SetToggle(string key, bool on)
+    {
+        if (!_toggles.ContainsKey(key))
+        {
+            return;
+        }
+
+        _toggles[key] = on;
+        RefreshVisuals();
+    }
+
+    /// <summary>
+    /// Rebuilds the buttons even though the item set has not changed.
+    ///
+    /// Needed after a language change: the items are the same objects, so
+    /// <see cref="SetItems"/> would short-circuit and the bar would keep the old
+    /// language's labels. Toggle state survives, because it lives in _toggles
+    /// rather than on the buttons.
+    /// </summary>
+    public void Retranslate()
+    {
+        _pillPlaced = false;
+        Build();
+    }
+
     public void SetItems(IReadOnlyList<NavBarItem> items, string? selectedKey)
     {
         // Only tear the buttons down when the set itself changed. Selection is a

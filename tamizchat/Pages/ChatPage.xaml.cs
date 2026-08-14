@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -30,6 +31,7 @@ public sealed partial class ChatPage : Page
     public ChatPage()
     {
         InitializeComponent();
+        Translate();
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -67,10 +69,10 @@ public sealed partial class ChatPage : Page
         var session = ServerSession.Instance;
         var room = session.MyRoom;
 
-        RoomTitle.Text = room?.Name ?? "Chat";
+        RoomTitle.Text = room?.Name ?? Loc.Get("Chat.Title");
         RoomSubtitle.Text = room is null
-            ? "Join a room to talk."
-            : $"{room.MemberCount} in the room · messages are cleared when everyone leaves";
+            ? Loc.Get("Chat.JoinToTalk")
+            : Loc.Get("Chat.RoomSubtitle", room.MemberCount);
 
         var canTalk = session.IsConnected && room is not null;
         Composer.IsEnabled = canTalk;
@@ -103,7 +105,7 @@ public sealed partial class ChatPage : Page
                 Append(message, atTop: false);
             }
 
-            Placeholder.Text = history.Messages.Count == 0 ? "No messages yet. Say something." : "";
+            Placeholder.Text = history.Messages.Count == 0 ? Loc.Get("Chat.Placeholder") : "";
             Placeholder.Visibility = history.Messages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             ScrollToBottom();
         }
@@ -309,7 +311,7 @@ public sealed partial class ChatPage : Page
             Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
         };
 
-        var open = new Button { Content = "Open", Padding = new Thickness(14, 5, 14, 5) };
+        var open = new Button { Content = Loc.Get("Chat.Open"), Padding = new Thickness(14, 5, 14, 5) };
         open.Click += async (_, _) =>
         {
             var download = await ServerSession.Instance.GetDownloadAsync(attachment.Id);
@@ -517,4 +519,18 @@ public sealed partial class ChatPage : Page
             _ => "Several people are typing…",
         };
     }
+
+    /// <summary>
+    /// Reads this page's strings for the current language.
+    ///
+    /// Called from the constructor only. The language can be changed on the
+    /// Settings page, and the frame builds a fresh instance of every page on
+    /// navigation, so any page the user reaches afterwards is already correct.
+    /// </summary>
+    private void Translate()
+    {
+        Composer.PlaceholderText = Loc.Get("Chat.WriteMessage");
+        SendButton.Content = Loc.Get("Chat.Send");
+    }
+
 }

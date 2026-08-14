@@ -1,3 +1,4 @@
+using TamizChat.Localization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -53,6 +54,7 @@ public sealed partial class PaintPage : Page
     public PaintPage()
     {
         InitializeComponent();
+        Translate();
 
         BuildCanvas();
         BuildSwatches();
@@ -150,7 +152,7 @@ public sealed partial class PaintPage : Page
     {
         if (!ServerSession.Instance.IsConnected || ServerSession.Instance.MyRoom is null)
         {
-            StatusLine.Text = "Join a room to draw.";
+            StatusLine.Text = Loc.Get("Paint.JoinToDraw");
             return;
         }
 
@@ -453,4 +455,20 @@ public sealed partial class PaintPage : Page
         var count = strokes is null ? "" : $" · {strokes}/{max} strokes";
         StatusLine.Text = $"{where}{count}";
     }
+
+    /// <summary>
+    /// Reads this page's strings for the current language.
+    ///
+    /// Called from the constructor only. The language can be changed on the
+    /// Settings page, and the frame builds a fresh instance of every page on
+    /// navigation, so any page the user reaches afterwards is already correct.
+    /// </summary>
+    private void Translate()
+    {
+        TitleText.Text = Loc.Get("Paint.Title");
+        UndoButton.Content = Loc.Get("Paint.Undo");
+        ClearMineButton.Content = Loc.Get("Paint.ClearMine");
+        ClearAllButton.Content = Loc.Get("Paint.ClearAll");
+    }
+
 }

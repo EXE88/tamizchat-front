@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" /></xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /></xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Nav.Servers" xml:space="preserve">
+    <value>Servers</value>
+  </data>
+  <data name="Nav.Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Nav.Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Nav.Room" xml:space="preserve">
+    <value>Room</value>
+  </data>
+  <data name="Nav.Chat" xml:space="preserve">
+    <value>Chat</value>
+  </data>
+  <data name="Nav.Mic" xml:space="preserve">
+    <value>Mic</value>
+  </data>
+  <data name="Nav.Muted" xml:space="preserve">
+    <value>Muted</value>
+  </data>
+  <data name="Nav.Speaker" xml:space="preserve">
+    <value>Speaker</value>
+  </data>
+  <data name="Nav.Deafened" xml:space="preserve">
+    <value>Deafened</value>
+  </data>
+  <data name="Nav.Camera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="Nav.Screen" xml:space="preserve">
+    <value>Screen</value>
+  </data>
+  <data name="Nav.Effects" xml:space="preserve">
+    <value>Effects</value>
+  </data>
+  <data name="Nav.Voice" xml:space="preserve">
+    <value>Voice</value>
+  </data>
+  <data name="Nav.Paint" xml:space="preserve">
+    <value>Paint</value>
+  </data>
+  <data name="Nav.Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+  </data>
+  <data name="Nav.More" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="Effect.Airhorn" xml:space="preserve">
+    <value>Airhorn</value>
+  </data>
+  <data name="Effect.Applause" xml:space="preserve">
+    <value>Applause</value>
+  </data>
+  <data name="Effect.DrumRoll" xml:space="preserve">
+    <value>Drum roll</value>
+  </data>
+  <data name="Effect.Rimshot" xml:space="preserve">
+    <value>Rimshot</value>
+  </data>
+  <data name="Effect.Crickets" xml:space="preserve">
+    <value>Crickets</value>
+  </data>
+  <data name="VoiceFx.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="VoiceFx.Deep" xml:space="preserve">
+    <value>Deep</value>
+  </data>
+  <data name="VoiceFx.Chipmunk" xml:space="preserve">
+    <value>Chipmunk</value>
+  </data>
+  <data name="VoiceFx.Robot" xml:space="preserve">
+    <value>Robot</value>
+  </data>
+  <data name="VoiceFx.Radio" xml:space="preserve">
+    <value>Radio</value>
+  </data>
+  <data name="App.Name" xml:space="preserve">
+    <value>TamizChat</value>
+  </data>
+  <data name="App.TitleWithServer" xml:space="preserve">
+    <value>TamizChat — {0}</value>
+  </data>
+  <data name="Home.Title" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Home.PickServer" xml:space="preserve">
+    <value>Pick a server to join.</value>
+  </data>
+  <data name="Home.NoServers" xml:space="preserve">
+    <value>No servers saved yet. Add one from the Servers page.</value>
+  </data>
+  <data name="Home.Join" xml:space="preserve">
+    <value>Join</value>
+  </data>
+  <data name="Home.Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="Home.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Home.Offline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Home.Checking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+  <data name="Servers.Title" xml:space="preserve">
+    <value>Servers</value>
+  </data>
+  <data name="Servers.Description" xml:space="preserve">
+    <value>Add, edit and remove saved servers. Join them from Home.</value>
+  </data>
+  <data name="Servers.Add" xml:space="preserve">
+    <value>Add server</value>
+  </data>
+  <data name="Servers.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Servers.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Servers.Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Servers.Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="Servers.Port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="Servers.Username" xml:space="preserve">
+    <value>Username</value>
+  </data>
+  <data name="Servers.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Servers.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings.Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings.Appearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="Settings.Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="Settings.Mode" xml:space="preserve">
+    <value>Mode</value>
+  </data>
+  <data name="Settings.Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="Settings.BackdropHelp" xml:space="preserve">
+    <value>Glass is the default. Matte is calmer; the High variants show more of what is behind the window.</value>
+  </data>
+  <data name="Settings.Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings.LanguageHelp" xml:space="preserve">
+    <value>Persian lays the app out right to left.</value>
+  </data>
+  <data name="Settings.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Settings.Accent" xml:space="preserve">
+    <value>Accent</value>
+  </data>
+  <data name="Settings.StandardButton" xml:space="preserve">
+    <value>Standard button</value>
+  </data>
+  <data name="Settings.SecondaryText" xml:space="preserve">
+    <value>Secondary text on a surface, so contrast can be judged.</value>
+  </data>
+  <data name="Theme.SaltAndPepper" xml:space="preserve">
+    <value>Salt and Pepper</value>
+  </data>
+  <data name="Theme.VioletAndLavender" xml:space="preserve">
+    <value>Violet and Lavender</value>
+  </data>
+  <data name="Theme.CarbonAndLime" xml:space="preserve">
+    <value>Carbon and Lime</value>
+  </data>
+  <data name="Mode.FollowWindows" xml:space="preserve">
+    <value>Follow Windows</value>
+  </data>
+  <data name="Mode.Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Mode.Dark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="Backdrop.Matte" xml:space="preserve">
+    <value>Matte</value>
+  </data>
+  <data name="Backdrop.MatteHigh" xml:space="preserve">
+    <value>Matte High</value>
+  </data>
+  <data name="Backdrop.Glass" xml:space="preserve">
+    <value>Glass</value>
+  </data>
+  <data name="Backdrop.GlassHigh" xml:space="preserve">
+    <value>Glass High</value>
+  </data>
+  <data name="Language.English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Language.Persian" xml:space="preserve">
+    <value>Persian</value>
+  </data>
+  <data name="Server.ShowAllRooms" xml:space="preserve">
+    <value>Show all rooms</value>
+  </data>
+  <data name="Server.FocusMyRoom" xml:space="preserve">
+    <value>Focus my room</value>
+  </data>
+  <data name="Server.NotConnected" xml:space="preserve">
+    <value>Not connected.</value>
+  </data>
+  <data name="Server.NoRooms" xml:space="preserve">
+    <value>This server has no rooms yet.</value>
+  </data>
+  <data name="Server.Empty" xml:space="preserve">
+    <value>Empty</value>
+  </data>
+  <data name="Server.StatusInRoom" xml:space="preserve">
+    <value>In {0} · {1} rooms · {2} online</value>
+  </data>
+  <data name="Server.StatusNoRoom" xml:space="preserve">
+    <value>{0} rooms · {1} online · not in a room</value>
+  </data>
+  <data name="Server.CouldNotJoin" xml:space="preserve">
+    <value>Could not join: {0}</value>
+  </data>
+  <data name="Chat.Title" xml:space="preserve">
+    <value>Chat</value>
+  </data>
+  <data name="Chat.WriteMessage" xml:space="preserve">
+    <value>Write a message</value>
+  </data>
+  <data name="Chat.Send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="Chat.Attach" xml:space="preserve">
+    <value>Attach</value>
+  </data>
+  <data name="Chat.Typing" xml:space="preserve">
+    <value>{0} is typing...</value>
+  </data>
+  <data name="Chat.TypingMany" xml:space="preserve">
+    <value>{0} people are typing...</value>
+  </data>
+  <data name="Chat.NoMessages" xml:space="preserve">
+    <value>No messages yet.</value>
+  </data>
+  <data name="Paint.Title" xml:space="preserve">
+    <value>Paint board</value>
+  </data>
+  <data name="Paint.Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="Paint.ClearMine" xml:space="preserve">
+    <value>Clear mine</value>
+  </data>
+  <data name="Paint.ClearAll" xml:space="preserve">
+    <value>Clear all</value>
+  </data>
+  <data name="Paint.Pen" xml:space="preserve">
+    <value>Pen</value>
+  </data>
+  <data name="Paint.Eraser" xml:space="preserve">
+    <value>Eraser</value>
+  </data>
+  <data name="Share.Title" xml:space="preserve">
+    <value>Share your screen</value>
+  </data>
+  <data name="Share.Share" xml:space="preserve">
+    <value>Share</value>
+  </data>
+  <data name="Share.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Share.MainScreen" xml:space="preserve">
+    <value>Main screen</value>
+  </data>
+  <data name="Share.ScreenN" xml:space="preserve">
+    <value>Screen {0}</value>
+  </data>
+  <data name="Share.ScreenSubtitle" xml:space="preserve">
+    <value>Screen · {0}x{1}</value>
+  </data>
+  <data name="Share.Window" xml:space="preserve">
+    <value>Window</value>
+  </data>
+  <data name="Share.NothingChosen" xml:space="preserve">
+    <value>Nothing was chosen to share.</value>
+  </data>
+  <data name="Share.NoCamera" xml:space="preserve">
+    <value>No camera is connected.</value>
+  </data>
+  <data name="Home.Connecting" xml:space="preserve">
+    <value>Connecting...</value>
+  </data>
+  <data name="Home.CouldNotConnect" xml:space="preserve">
+    <value>Could not connect: {0}</value>
+  </data>
+  <data name="Servers.UseTls" xml:space="preserve">
+    <value>Use TLS (wss)</value>
+  </data>
+  <data name="Servers.RemoveTitle" xml:space="preserve">
+    <value>Remove server</value>
+  </data>
+  <data name="Chat.Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="Paint.JoinToDraw" xml:space="preserve">
+    <value>Join a room to draw.</value>
+  </data>
+  <data name="Chat.RoomSubtitle" xml:space="preserve">
+    <value>{0} in the room · messages are cleared when everyone leaves</value>
+  </data>
+  <data name="Chat.Placeholder" xml:space="preserve">
+    <value>No messages yet. Say something.</value>
+  </data>
+  <data name="Chat.JoinToTalk" xml:space="preserve">
+    <value>Join a room to talk.</value>
+  </data>
+  <data name="Home.OnlineCount" xml:space="preserve">
+    <value>{0}/{1} online</value>
+  </data>
+  <data name="Home.PasswordRequired" xml:space="preserve">
+    <value>password required</value>
+  </data>
+  <data name="Home.HasVoice" xml:space="preserve">
+    <value>voice</value>
+  </data>
+</root>

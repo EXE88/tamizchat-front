@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — F0 to F7 and F9 done
+Last updated: 2026-08-14 — F0 to F9 done
 
 ---
 
@@ -153,8 +153,48 @@ no webcam. Everything downstream of it is proven by the test pattern, which goes
 through the identical publish path, so what is unverified is `CameraCapture`
 itself: device enumeration, format selection and the BGRA copy.
 
-Remaining phases are tracked as tasks: F8 localization, F10
-audio effects, F11 installer.
+**Phase F8 (localization) — done.** Every user-visible string in the app goes
+through the resource layer; 113 keys, English and Persian. Verified by running
+the app in Persian: Home, Settings and Chat all read Persian, the whole shell
+lays out right to left, and switching language takes effect without a restart.
+
+Remaining phases: F10 audio effects, F11 installer.
+
+### How localization works
+
+- **Plain .NET `ResourceManager` over embedded .resx, not `x:Uid` and .resw.**
+  Most of this UI is built in C#, so `x:Uid` would only reach a minority of the
+  strings; and .resw resolves through PRI, the part of the resource stack least
+  happy in an unpackaged app. A ResourceManager behaves the same either way.
+- **`Loc.Get` never throws.** A missing translation falls back to English and a
+  missing key returns the key, so a gap looks wrong in the UI instead of crashing
+  the page.
+- **Nav items hold `LabelKey`, not `Label`.** `ShellItems` is static data built
+  once, so storing translated text would freeze it into whichever language loaded
+  first. The label is resolved at display time.
+- **The bar needs `Retranslate()` after a language change.** `SetItems`
+  deliberately short-circuits when the item set is the same object, which it is,
+  so it would keep the old labels. Toggle state survives the rebuild because it
+  lives in `_toggles`, not on the buttons.
+- **FlowDirection is set on the root content**, so it inherits to the bar, every
+  page and every dialog at once. Setting it per page leaves the bar facing the
+  wrong way.
+- **The whole title row is kept left-to-right**, via `TitleRow`, not just
+  `AppTitleBar`. Windows keeps the minimise/maximise/close buttons on the right
+  whatever the app's flow direction is, so a mirrored strip puts our content
+  underneath them. This was got wrong once by setting it on `AppTitleBar` alone:
+  the back button sits *outside* that element on purpose (anything inside the
+  drag region never receives clicks), so it stayed mirrored and landed on top of
+  the close button. Set it on the parent both of them inherit from.
+- **XAML keeps its English literals as design-time defaults**, and each page's
+  `Translate()` overwrites them at runtime. That way the designer still shows
+  something readable and there is exactly one source of truth at run time.
+- `Translate()` is called from the page constructor only. Language can be changed
+  on the Settings page, which retranslates itself in place, and the frame builds
+  a fresh instance of every other page on navigation.
+- `CurrentUICulture` is switched but **not `CurrentCulture`** — Persian digits
+  next to a latin server address read worse than plain ones, and this app is full
+  of such mixtures.
 
 ### Chat
 
@@ -654,6 +694,27 @@ Decisions worth keeping:
 - The LiveKit room name really is the TamizChat `room_id`, confirmed on the wire.
 - Active speaker events arrive from LiveKit as promised, so the room grid's
   "who is talking" halo needs nothing from our own server.
+
+### Screen sharing asks first, and shows you what you are sharing
+
+Two things were missing when the toggle first went in, and together they made it
+look completely broken: it published the primary monitor with no dialog, and the
+user saw nothing happen.
+
+- **`SharePicker` lists monitors and windows** — our own dialog, not the system
+  `GraphicsCapturePicker`, which hands back a Direct3D surface and so belongs to
+  a different capture stack from the GDI path used here. TamizChat's own windows
+  are filtered out, along with cloaked and tool windows.
+- **Cancelling puts the toggle back.** A bar showing screen sharing as on while
+  nothing is being sent is the worst of the three possible states.
+- **The publisher sees their own share.** LiveKit does not loop a published track
+  back to whoever published it, so without a local preview the one person who
+  cannot see the share is the person sharing — which reads as a dead button.
+  `VoiceService` raises its own frames through the same event as remote ones.
+- A window is captured with `PrintWindow` and `PW_RENDERFULLCONTENT`, so it works
+  when the window is behind another; without that flag modern apps come back
+  blank. A monitor is `BitBlt` from the desktop DC **at that monitor's offset**,
+  or the second screen captures as a copy of the first.
 
 ### Video, and the one number that is not good enough
 

@@ -26,10 +26,10 @@
                         FontSize="34"
                         FontWeight="SemiBold"
                         Foreground="{StaticResource TcTextPrimaryBrush}"
-                        Text="Servers" />
+                        x:Name="TitleText" Text="Servers" />
                     <TextBlock
                         Foreground="{StaticResource TcTextSecondaryBrush}"
-                        Text="Add, edit and remove saved servers. Join them from Home." />
+                        x:Name="SubtitleText" Text="Add, edit and remove saved servers. Join them from Home." />
                 </StackPanel>
 
                 <Button
@@ -37,7 +37,7 @@
                     VerticalAlignment="Bottom"
                     Click="OnAddClick"
                     Style="{StaticResource TcAccentButtonStyle}"
-                    Content="Add server" />
+                    x:Name="AddButton" Content="Add server" />
             </Grid>
 
             <ItemsControl x:Name="ServerList">
