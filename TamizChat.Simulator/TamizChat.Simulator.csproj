@@ -17,4 +17,9 @@
     <ProjectReference Include="..\TamizChat.Audio\TamizChat.Audio.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Copied so `tamizsim fx` can decode exactly the files the app ships. -->
+    <Content Include="..\tamizchat\Assets\Sounds\*.ogg" Link="Assets\Sounds\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

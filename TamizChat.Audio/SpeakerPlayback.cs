@@ -104,6 +104,57 @@ public sealed class SpeakerPlayback : IDisposable
         }
     }
 
+    /// <summary>
+    /// Plays a complete sound to the end, mixed alongside the voices.
+    ///
+    /// Deliberately **not** `Submit`. That path is a jitter buffer with a half
+    /// second cap: a two-second notification pushed through it has its own
+    /// beginning dropped sample by sample as the rest arrives, so all anyone
+    /// hears is the last half second. That really happened. A clip is not a
+    /// stream — it is finite, it is already all here, and it must play whole.
+    /// </summary>
+    public void PlayClip(short[] pcm)
+    {
+        if (pcm.Length == 0)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _clips.Add(new OneShot(pcm));
+        }
+    }
+
+    /// <summary>Stops every one-shot immediately, leaving voices alone.</summary>
+    public void StopClips()
+    {
+        lock (_gate)
+        {
+            _clips.Clear();
+        }
+    }
+
+    public bool IsPlayingClip
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _clips.Count > 0;
+            }
+        }
+    }
+
+    private readonly List<OneShot> _clips = [];
+
+    private sealed class OneShot(short[] pcm)
+    {
+        public short[] Pcm { get; } = pcm;
+
+        public int Position { get; set; }
+    }
+
     /// <summary>Forgets a participant, so their buffer does not linger after they leave.</summary>
     public void Remove(string identity)
     {
@@ -127,6 +178,26 @@ public sealed class SpeakerPlayback : IDisposable
                 for (var i = 0; i < samples && queue.Count > 0; i++)
                 {
                     mix[i] += queue.Dequeue() / 32768f;
+                }
+            }
+
+            // One-shots advance by however much was actually taken, and are
+            // removed the moment they run out.
+            for (var c = _clips.Count - 1; c >= 0; c--)
+            {
+                var clip = _clips[c];
+                var taken = Math.Min(samples, clip.Pcm.Length - clip.Position);
+
+                for (var i = 0; i < taken; i++)
+                {
+                    mix[i] += clip.Pcm[clip.Position + i] / 32768f;
+                }
+
+                clip.Position += taken;
+
+                if (clip.Position >= clip.Pcm.Length)
+                {
+                    _clips.RemoveAt(c);
                 }
             }
         }

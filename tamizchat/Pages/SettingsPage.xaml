@@ -67,6 +67,58 @@
                     Text="Persian lays the app out right to left." />
             </StackPanel>
 
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="SoundboardLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Soundboard" />
+                <TextBlock x:Name="SoundboardHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Clips you can play into the room. Everyone in the room hears them." />
+                <ItemsControl x:Name="ClipList" Margin="0,6,0,0" />
+                <Button x:Name="AddClipButton" Margin="0,6,0,0" Click="OnAddClipClick" Content="Add clip" />
+                <TextBlock x:Name="ClipError" FontSize="12" Foreground="{StaticResource TcDangerBrush}" Visibility="Collapsed" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="EventSoundsLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Notification sounds" />
+                <TextBlock x:Name="EventSoundsHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Played only on your machine, when people come and go." />
+                <ToggleSwitch x:Name="EventSoundsSwitch" Toggled="OnEventSoundsToggled" />
+                <TextBlock x:Name="EventVolumeLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Volume" />
+                <Slider x:Name="EventVolumeSlider" Maximum="100" ValueChanged="OnEventVolumeChanged" />
+            </StackPanel>
+
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="OverlaysLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Overlays" />
+
+                <TextBlock x:Name="MembersOverlayLabel" Margin="0,6,0,0" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Members overlay" />
+                <TextBlock x:Name="MembersOverlayHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Shows your room and who is talking, on top of everything else." />
+                <ToggleSwitch x:Name="MembersOverlaySwitch" Toggled="OnOverlayChanged" />
+                <TextBlock x:Name="MembersPositionLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Position" />
+                <ComboBox x:Name="MembersCornerBox" HorizontalAlignment="Stretch" SelectionChanged="OnOverlayChanged">
+                    <ComboBoxItem Content="Top left" />
+                    <ComboBoxItem Content="Top right" />
+                    <ComboBoxItem Content="Bottom left" />
+                    <ComboBoxItem Content="Bottom right" />
+                </ComboBox>
+                <TextBlock x:Name="MembersOpacityLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Opacity" />
+                <Slider x:Name="MembersOpacitySlider" Minimum="20" Maximum="100" ValueChanged="OnOverlaySliderChanged" />
+
+                <TextBlock x:Name="MessagesOverlayLabel" Margin="0,10,0,0" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Messages overlay" />
+                <TextBlock x:Name="MessagesOverlayHelp" FontSize="12" Foreground="{StaticResource TcTextSecondaryBrush}" Text="New messages appear over the screen and fade away." />
+                <ToggleSwitch x:Name="MessagesOverlaySwitch" Toggled="OnOverlayChanged" />
+                <TextBlock x:Name="MessagesPositionLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Position" />
+                <ComboBox x:Name="MessagesCornerBox" HorizontalAlignment="Stretch" SelectionChanged="OnOverlayChanged">
+                    <ComboBoxItem Content="Top left" />
+                    <ComboBoxItem Content="Top right" />
+                    <ComboBoxItem Content="Bottom left" />
+                    <ComboBoxItem Content="Bottom right" />
+                </ComboBox>
+                <TextBlock x:Name="MessagesOpacityLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Opacity" />
+                <Slider x:Name="MessagesOpacitySlider" Minimum="20" Maximum="100" ValueChanged="OnOverlaySliderChanged" />
+                <TextBlock x:Name="MaxMessagesLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Messages at once" />
+                <Slider x:Name="MaxMessagesSlider" Minimum="1" Maximum="10" ValueChanged="OnOverlaySliderChanged" />
+                <TextBlock x:Name="FadeAfterLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Fade after (seconds)" />
+                <Slider x:Name="FadeAfterSlider" Minimum="2" Maximum="30" ValueChanged="OnOverlaySliderChanged" />
+            </StackPanel>
+
             <Border
                 Padding="20"
                 Background="{StaticResource TcSurfaceBrush}"

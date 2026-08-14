@@ -57,4 +57,9 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Notification sounds, read at runtime from beside the exe. -->
+    <Content Include="Assets\Sounds\*.ogg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

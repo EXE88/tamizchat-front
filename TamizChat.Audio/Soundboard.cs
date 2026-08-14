@@ -1,6 +1,6 @@
 namespace TamizChat.Audio;
 
-/// <summary>The built-in clips, in the order the bottom bar lists them.</summary>
+/// <summary>The clips generated in code, in the order the bar lists them.</summary>
 public enum SoundEffect
 {
     Airhorn,
@@ -10,13 +10,14 @@ public enum SoundEffect
     Crickets,
 }
 
+
 /// <summary>
-/// The soundboard: clips mixed into the outgoing microphone stream.
+/// The soundboard player: whatever clip is playing is mixed into the outgoing
+/// microphone stream, so everyone in the room hears it.
 ///
-/// The clips are **synthesised**, not shipped as files. Nothing here needs a
-/// licence, an asset folder or an installer step, and the whole soundboard costs
-/// a few hundred lines instead of a few megabytes. A user's own files can be
-/// added later on top of this — playback does not care where samples come from.
+/// It knows nothing about where clips come from — built in, or a file the user
+/// added. That belongs to the library above it; this is the part that has to be
+/// cheap enough to run inside a 10 ms capture callback.
 ///
 /// Only one clip plays at a time. Two airhorns at once is noise, and the second
 /// press almost always means "again", not "both".
@@ -24,10 +25,12 @@ public enum SoundEffect
 public sealed class Soundboard
 {
     private readonly object _gate = new();
-    private readonly Dictionary<SoundEffect, short[]> _clips = [];
 
     private short[]? _playing;
     private int _position;
+
+    /// <summary>Raised when a clip finishes or is stopped, so the bar can drop its Stop state.</summary>
+    public event EventHandler? Finished;
 
     /// <summary>True while a clip is still being mixed in.</summary>
     public bool IsPlaying
@@ -41,28 +44,30 @@ public sealed class Soundboard
         }
     }
 
-    public void Play(SoundEffect effect)
+    public void Play(short[] pcm)
     {
         lock (_gate)
         {
-            if (!_clips.TryGetValue(effect, out var clip))
-            {
-                clip = Render(effect);
-                _clips[effect] = clip;
-            }
-
             // Restart rather than layer: pressing again means "again".
-            _playing = clip;
+            _playing = pcm.Length == 0 ? null : pcm;
             _position = 0;
         }
     }
 
     public void Stop()
     {
+        var was = false;
+
         lock (_gate)
         {
+            was = _playing is not null;
             _playing = null;
             _position = 0;
+        }
+
+        if (was)
+        {
+            Finished?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -76,6 +81,8 @@ public sealed class Soundboard
     /// </summary>
     public bool MixInto(short[] frame)
     {
+        var ended = false;
+
         lock (_gate)
         {
             if (_playing is null)
@@ -89,7 +96,8 @@ public sealed class Soundboard
                 {
                     _playing = null;
                     _position = 0;
-                    return true;
+                    ended = true;
+                    break;
                 }
 
                 var voice = frame[i] / 32768f * 0.6f;
@@ -98,12 +106,26 @@ public sealed class Soundboard
 
                 frame[i] = AudioFormat.ToPcm(voice + clip);
             }
-
-            return true;
         }
-    }
 
-    private static short[] Render(SoundEffect effect) => effect switch
+        if (ended)
+        {
+            Finished?.Invoke(this, EventArgs.Empty);
+        }
+
+        return true;
+    }
+}
+
+/// <summary>
+/// The clips that ship with the app, generated rather than shipped as files.
+///
+/// Nothing here needs a licence, an asset folder or an installer step, and the
+/// whole set costs a few hundred lines instead of a few megabytes.
+/// </summary>
+public static class BuiltInClips
+{
+    public static short[] Render(SoundEffect effect) => effect switch
     {
         SoundEffect.Airhorn => Airhorn(),
         SoundEffect.Applause => Applause(),

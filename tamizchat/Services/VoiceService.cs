@@ -124,10 +124,15 @@ public sealed class VoiceService
             SetVoiceEffect(kind);
         }
 
-        if (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOEFFECT") is { } name
-            && Enum.TryParse<SoundEffect>(name, true, out var clip))
+        if (Environment.GetEnvironmentVariable("TAMIZCHAT_AUTOEFFECT") is { } name)
         {
-            await PlayEffectAsync(clip).ConfigureAwait(true);
+            var entry = SoundboardLibrary.Instance.Entries
+                .FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+
+            if (entry is not null)
+            {
+                await PlayEffectAsync(entry).ConfigureAwait(true);
+            }
         }
     }
 
@@ -405,9 +410,15 @@ public sealed class VoiceService
     /// button is a deliberate act, and silently doing nothing because the
     /// microphone happens to be off reads as a broken button.
     /// </summary>
-    public async Task PlayEffectAsync(SoundEffect effect)
+    public async Task PlayEffectAsync(SoundboardEntry entry)
     {
         if (_session is null)
+        {
+            return;
+        }
+
+        var pcm = SoundboardLibrary.Instance.Pcm(entry);
+        if (pcm.Length == 0)
         {
             return;
         }
@@ -417,9 +428,19 @@ public sealed class VoiceService
             await SetMutedAsync(false).ConfigureAwait(true);
         }
 
-        Soundboard.Play(effect);
+        Soundboard.Play(pcm);
         Raise();
     }
+
+    /// <summary>Cuts a clip short, for the Stop the bar shows while one is playing.</summary>
+    public void StopEffect()
+    {
+        Soundboard.Stop();
+        Raise();
+    }
+
+    /// <summary>True while a soundboard clip is playing, so the bar can offer Stop.</summary>
+    public bool IsPlayingEffect => Soundboard.IsPlaying;
 
     public void SetVoiceEffect(VoiceEffectKind kind)
     {

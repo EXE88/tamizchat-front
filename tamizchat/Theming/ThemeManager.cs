@@ -139,6 +139,24 @@ public sealed class ThemeManager
         SetBrush("AccentFillColorTertiaryBrush", palette.AccentHover);
         SetBrush("TextOnAccentFillColorPrimaryBrush", palette.OnAccent);
 
+        // ToggleSwitch and Slider do **not** inherit from the brushes above:
+        // their templates reference their own keys, which are baked from the
+        // Windows system accent at startup. Without these four they stay blue
+        // while the rest of the app follows the chosen family — which is the
+        // same trap as WinUI's AccentButtonStyle, in a different disguise.
+        SetBrush("ToggleSwitchFillOn", palette.Accent);
+        SetBrush("ToggleSwitchFillOnPointerOver", palette.AccentHover);
+        SetBrush("ToggleSwitchFillOnPressed", palette.AccentHover);
+        SetBrush("ToggleSwitchStrokeOn", palette.Accent);
+        SetBrush("ToggleSwitchStrokeOnPointerOver", palette.AccentHover);
+        SetBrush("ToggleSwitchKnobFillOn", palette.OnAccent);
+        SetBrush("SliderTrackValueFill", palette.Accent);
+        SetBrush("SliderTrackValueFillPointerOver", palette.AccentHover);
+        SetBrush("SliderTrackValueFillPressed", palette.AccentHover);
+        SetBrush("SliderThumbBackground", palette.Accent);
+        SetBrush("SliderThumbBackgroundPointerOver", palette.AccentHover);
+        SetBrush("SliderThumbBackgroundPressed", palette.AccentHover);
+
         // The floating bar's own material is acrylic, not a solid brush, so its
         // tint has to be updated separately.
         SetAcrylicTint("TcBarAcrylicBrush", palette.Surface);

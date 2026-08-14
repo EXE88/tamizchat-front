@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
+using TamizChat.Localization;
 using TamizChat.Navigation;
 using Windows.Foundation;
 
@@ -106,6 +107,41 @@ public sealed partial class FloatingNavBar : UserControl
         Build();
     }
 
+    /// <summary>
+    /// Temporarily replaces what an item looks like and does.
+    ///
+    /// Used for the soundboard: while a clip is playing, Effects becomes Stop.
+    /// The flyout is detached rather than left in place, because a button that
+    /// says Stop but opens a menu of clips is worse than either behaviour on its
+    /// own — and a Flyout opens on click whatever the Click handler does.
+    /// </summary>
+    public void SetOverride(string key, string? glyph, string? label)
+    {
+        if (!_buttons.TryGetValue(key, out var button) || button.Tag is not NavBarItem item)
+        {
+            return;
+        }
+
+        if (glyph is null)
+        {
+            _overrides.Remove(key);
+
+            if (item.Kind == NavItemKind.Menu)
+            {
+                button.Flyout = BuildMenu(item);
+            }
+        }
+        else
+        {
+            _overrides[key] = (glyph, label ?? "");
+            button.Flyout = null;
+        }
+
+        RefreshVisuals();
+    }
+
+    private readonly Dictionary<string, (string Glyph, string Label)> _overrides = [];
+
     public void SetItems(IReadOnlyList<NavBarItem> items, string? selectedKey)
     {
         // Only tear the buttons down when the set itself changed. Selection is a
@@ -171,15 +207,17 @@ public sealed partial class FloatingNavBar : UserControl
 
         if (item.Kind == NavItemKind.Menu)
         {
-            var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.Top };
-            foreach (var option in item.MenuOptions)
-            {
-                var entry = new MenuFlyoutItem { Text = option };
-                entry.Click += (_, _) => StateChanged?.Invoke(this, new NavBarStateEventArgs(item, true, option));
-                flyout.Items.Add(entry);
-            }
+            button.Flyout = BuildMenu(item);
 
-            button.Flyout = flyout;
+            // Also handled directly, for when an override has taken the flyout
+            // away and the button is standing in for something else.
+            button.Click += (_, _) =>
+            {
+                if (_overrides.ContainsKey(item.Key))
+                {
+                    StateChanged?.Invoke(this, new NavBarStateEventArgs(item, true, null));
+                }
+            };
         }
         else
         {
@@ -188,6 +226,30 @@ public sealed partial class FloatingNavBar : UserControl
 
         ToolTipService.SetToolTip(button, item.Label);
         return button;
+    }
+
+    /// <summary>
+    /// Builds a menu item's flyout from its current options.
+    ///
+    /// Rebuilt on every open rather than cached, because the soundboard's list
+    /// is edited in Settings and a cached menu would show yesterday's clips.
+    /// </summary>
+    private MenuFlyout BuildMenu(NavBarItem item)
+    {
+        var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.Top };
+
+        flyout.Opening += (_, _) =>
+        {
+            flyout.Items.Clear();
+            foreach (var option in item.MenuOptions)
+            {
+                var entry = new MenuFlyoutItem { Text = option };
+                entry.Click += (_, _) => StateChanged?.Invoke(this, new NavBarStateEventArgs(item, true, option));
+                flyout.Items.Add(entry);
+            }
+        };
+
+        return flyout;
     }
 
     private void OnPressed(NavBarItem item)
@@ -227,9 +289,12 @@ public sealed partial class FloatingNavBar : UserControl
             Flyout = flyout,
         };
 
-        //  is the horizontal ellipsis in Segoe Fluent Icons.
-        Paint(button, "", "More", Brush("TcTextSecondaryBrush"));
-        ToolTipService.SetToolTip(button, "More");
+        // Written as an escape, not pasted: glyphs live in Unicode's private use
+        // area and get silently stripped in transit, which is exactly what had
+        // happened here — the More button was rendering with no icon at all.
+        var more = Loc.Get("Nav.More");
+        Paint(button, "", more, Brush("TcTextSecondaryBrush"));
+        ToolTipService.SetToolTip(button, more);
         return button;
     }
 
@@ -252,6 +317,14 @@ public sealed partial class FloatingNavBar : UserControl
             var glyph = item.Glyph;
             var label = item.Label;
             var foreground = Brush("TcTextSecondaryBrush");
+
+            // An override wins over everything below: while it is in place the
+            // item is standing in for something else entirely.
+            if (_overrides.TryGetValue(item.Key, out var replacement))
+            {
+                Paint(button, replacement.Glyph, replacement.Label, Brush("TcAccentBrush"));
+                continue;
+            }
 
             switch (item.Kind)
             {

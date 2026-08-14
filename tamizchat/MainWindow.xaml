@@ -67,6 +67,42 @@
             <Frame x:Name="ContentFrame" />
 
             <!--
+                Inline chat: a send-only strip that sits directly above the bar.
+                Deliberately has no message list — its whole point is sending a
+                line without leaving the page you are on.
+            -->
+            <Grid
+                x:Name="InlineChat"
+                Margin="0,0,0,92"
+                Padding="10,8"
+                MaxWidth="620"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Bottom"
+                Background="{StaticResource TcBarAcrylicBrush}"
+                BorderBrush="{StaticResource TcBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource TcCardCornerRadius}"
+                Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox
+                    x:Name="InlineChatBox"
+                    Grid.Column="0"
+                    MinWidth="360"
+                    Margin="0,0,8,0"
+                    KeyDown="OnInlineChatKeyDown"
+                    PlaceholderText="Write a message" />
+                <Button
+                    x:Name="InlineChatSend"
+                    Grid.Column="1"
+                    Click="OnInlineChatSend"
+                    Content="Send"
+                    Style="{StaticResource TcAccentButtonStyle}" />
+            </Grid>
+
+            <!--
                 Floating rather than docked: it hangs above the bottom edge and
                 the page scrolls beneath it.
             -->

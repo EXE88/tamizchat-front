@@ -70,6 +70,8 @@ public sealed class ServerSession
         Users = welcome.Users;
         MyRoomId = welcome.You.RoomId;
         Raise();
+
+        Cue(AppSound.YouJoinedServer);
     }
 
     public async Task DisconnectAsync()
@@ -103,10 +105,22 @@ public sealed class ServerSession
             .RequestAsync(MessageTypes.RoomJoin, new RoomJoinRequest { RoomId = roomId, Password = password })
             .ConfigureAwait(true);
 
+        // Whether this is the first room of the session or a move between rooms
+        // is only knowable here, before MyRoomId is overwritten.
+        var roomIdBefore = MyRoomId;
+        var switching = !string.IsNullOrEmpty(roomIdBefore);
+
         var joined = TamizChatClient.Deserialize<RoomJoined>(reply);
         if (joined is not null)
         {
             MyRoomId = joined.Room.Id;
+
+            // Only on a genuine move. Rejoining the room you are already in
+            // happens on reconnects and should be silent.
+            if (switching && joined.Room.Id != roomIdBefore)
+            {
+                Cue(AppSound.YouSwitchedRoom);
+            }
         }
 
         await RefreshRoomsAsync().ConfigureAwait(true);
@@ -378,6 +392,37 @@ public sealed class ServerSession
         return $"{Server.HttpUrl.TrimEnd('/')}/{pathOrUrl.TrimStart('/')}";
     }
 
+    /// <summary>
+    /// Decides which notification a membership change deserves.
+    ///
+    /// Only events about **your own** room make a sound. A busy server has
+    /// people moving constantly and a chime for each one is unusable — the point
+    /// is to know who walked into the room you are sitting in.
+    /// </summary>
+    private void CueMembership(ServerEventArgs e)
+    {
+        var change = e.As<RoomMemberEvent>();
+        if (change is null || string.IsNullOrEmpty(MyRoomId) || change.RoomId != MyRoomId)
+        {
+            return;
+        }
+
+        // Your own arrival is announced by the room.joined path instead, which
+        // knows whether it was a first join or a switch.
+        if (change.User.ClientUuid == MyUuid)
+        {
+            return;
+        }
+
+        var moved = change.Reason is "moved_by_admin";
+
+        Cue(e.Type == MessageTypes.RoomMemberJoined
+            ? moved ? AppSound.UserMovedToYourRoom : AppSound.UserJoinedYourRoom
+            : moved ? AppSound.UserMovedOutOfYourRoom : AppSound.UserLeftYourRoom);
+    }
+
+    private void Cue(AppSound sound) => _ui.TryEnqueue(() => EventSounds.Instance.Play(sound));
+
     private void OnServerEvent(object? sender, ServerEventArgs e)
     {
         switch (e.Type)
@@ -387,8 +432,23 @@ public sealed class ServerSession
             // re-read. It arrives in one frame and is always consistent.
             case MessageTypes.RoomMemberJoined:
             case MessageTypes.RoomMemberLeft:
-            case MessageTypes.UserJoined:
+                CueMembership(e);
+                QueueRefresh();
+                break;
+
             case MessageTypes.UserLeft:
+                // Someone disconnecting entirely. Whoever was in your room also
+                // produces room.member_left, so this is only the server-wide
+                // departure and is deliberately the quieter of the two.
+                if (e.As<UserLeftEvent>() is { } gone && gone.ClientUuid != MyUuid)
+                {
+                    Cue(AppSound.UserLeftServer);
+                }
+
+                QueueRefresh();
+                break;
+
+            case MessageTypes.UserJoined:
             case MessageTypes.UserUpdated:
             case "room.created":
             case "room.updated":
@@ -398,8 +458,24 @@ public sealed class ServerSession
                 break;
 
             case MessageTypes.RoomLeft:
+                // The only way to tell "a moderator moved me" from "I left" is
+                // this reason; both otherwise look identical from here.
+                if (e.As<RoomLeftEvent>()?.Reason == "moved_by_admin")
+                {
+                    Cue(AppSound.YouWereMoved);
+                }
+
                 MyRoomId = "";
                 QueueRefresh();
+                break;
+
+            case "user.kicked":
+            case "user.banned":
+                if (e.As<SanctionEvent>() is { } sanction && sanction.ClientUuid == MyUuid)
+                {
+                    Cue(e.Type == "user.banned" ? AppSound.YouWereBanned : AppSound.YouWereKicked);
+                }
+
                 break;
 
             case MessageTypes.ChatMessage:

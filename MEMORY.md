@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — F0 to F10 done
+Last updated: 2026-08-15 — F0 to F10 done, post-F10 feature round in progress
 
 ---
 
@@ -179,6 +179,132 @@ in 12 s to a listener — a clean 100/s, no drops.
 | Chipmunk | 200 Hz | 310 Hz |
 | Robot | 200 Hz | 250 Hz (ring-mod sideband) |
 | Radio | 200 Hz | 200 Hz, louder — the clipping |
+
+### The post-F10 round
+
+Eight things asked for after F10, before the installer. Done so far:
+
+- **Soundboard really is heard by others** — measured, not assumed. A listener's
+  received level sat at RMS 1–6 in silence and jumped to **8679 then 3921** for
+  the airhorn's two seconds. The decay shape matches the clip's envelope.
+- **Notification sounds** from the user's own recordings, ten events mapped, plus
+  two spare clips on the soundboard.
+- **A customisable soundboard**: clips are a persisted list, editable in
+  Settings, with a file picker; the Effects item becomes **Stop** while a clip
+  plays.
+
+- **Members overlay** and **messages overlay**: click-through windows floating
+  above everything, verified by full-desktop screenshots — the members panel
+  grew live from one person to two, and a chat card appeared with its author.
+- **Inline chat**: a send-only strip above the bottom bar.
+
+Still to do: **admin and moderation in the client**, and the **wider settings
+overhaul** (input/output device pick, mic level, key bindings, right-click a user
+for per-user volume and details).
+
+### Overlay transparency: two dead ends and the answer
+
+- **Colour keying does not work.** `SetLayeredWindowAttributes` with
+  `LWA_COLORKEY` never sees WinUI's pixels — the content is composed through
+  DirectComposition rather than painted into the window's own surface, so the key
+  colour stays plainly visible. Tried with and without alpha; magenta on screen
+  both times.
+- **Plain acrylic is a surface, not transparency.** `DesktopAcrylicBackdrop`
+  renders, but it tints the whole rectangle dark — which is the black panel the
+  exercise was meant to remove. It also made dark theme text invisible.
+- **`DevWinUI.TransparentBackdrop` is the answer** (the user pointed at it). The
+  window then has no surface of its own and only the content shows.
+- With nothing behind the window, text can land on any colour the desktop
+  happens to be, so each member row sits on a **translucent dark pill with white
+  text** — readable over anything without bringing the solid panel back.
+
+### Making an overlay window actually invisible
+
+Three separate things draw a frame, and all three have to go:
+
+1. `presenter.SetBorderAndTitleBar(false, false)` — removes the title bar.
+2. **DWM rounds every Windows 11 window and outlines it.** On a transparent
+   overlay that is a ghost frame around nothing, and its corner radius does not
+   match the cards inside, which reads as a misaligned edge.
+   `DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_DONOTROUND` and
+   `DWMWA_BORDER_COLOR = DWMWA_COLOR_NONE` deal with those.
+3. **A thin light outline still survives both** — it comes from the window's own
+   frame styles. `SetWindowLong(GWL_STYLE, WS_POPUP | WS_VISIBLE)` plus
+   `SetWindowPos(..., SWP_FRAMECHANGED)` is what finally removes it. WS_POPUP is
+   a window with no frame at all, which is what an overlay actually is.
+
+All of this is plain Win32; DevWinUI supplies the transparent backdrop only.
+
+**Open, not yet explained:** after this change the members overlay showed a pill
+labelled with the *room* name ("Lobby") alongside the real members, with only one
+app process running and no room-name code left in the file. Worth reproducing
+before trusting the member list.
+
+### How the overlays work
+
+- **Click-through is the point.** `WS_EX_TRANSPARENT` passes the mouse to
+  whatever is underneath; without it a panel over somebody's game eats exactly
+  the clicks they were aiming at. `WS_EX_TOOLWINDOW` keeps them out of Alt-Tab
+  and `WS_EX_NOACTIVATE` stops them stealing focus.
+- **Opacity is a window attribute, not element opacity.** A WinUI window paints
+  its own background, so fading only the content leaves an opaque rectangle.
+  `SetLayeredWindowAttributes` fades the whole thing.
+- Positioned against the **work area**, not the screen, or a bottom corner lands
+  under the taskbar. `AppWindow` works in physical pixels, so the corner helper
+  scales by the window's DPI — the same trap as `MainWindow.SizeAndCentre`.
+- The messages overlay drops the **oldest card immediately** when a new one
+  exceeds the limit, whatever its own timer said. That was the explicit ask and
+  it is the right rule.
+- Overlays are created lazily and kept, but **closed on exit** — they are real
+  top-level windows and would otherwise keep the process alive invisibly.
+- **A screenshot script that matches on the process name will grab an overlay**
+  rather than the main window. Capture the whole desktop and crop instead.
+
+### Opening the Settings page used to wipe your settings
+
+`_loading = false` sat *above* the block that populates the overlay controls, so
+each assignment raised its change handler, and those handlers write the whole
+group back at once — saving the not-yet-populated state of every other control
+over the real values. Simply visiting Settings reset the overlays. **Populate
+every control first, then clear the flag.** Any new group of controls added to
+that page has to go above the flag too.
+
+`Load()` runs once at startup and `SettingsStore.Current` stays live in memory;
+pages are not cached, so navigating away and back rebuilds the page against
+current values. That part was always sound — the bug was the save, not the load.
+
+### Glyphs get stripped, again
+
+The bar's More button was rendering with no icon: its glyph was a pasted private
+use area character that had been silently stripped somewhere in transit — exactly
+what the ShellItems comment warns about. It is now `""` as an escape, like
+every other glyph in the project. **Never paste an icon glyph into this codebase.**
+
+### Sound files: the container is not the codec
+
+The clips supplied as `.ogg` were Ogg **Opus**, not Ogg Vorbis — NVorbis rejected
+all twelve with `Found OPUS bitstream` after the dependency had already been
+chosen on the assumption they were Vorbis. `AudioClip` now sniffs the first
+packet for `OpusHead` and routes to Concentus or NVorbis accordingly, the same
+"detect from the bytes" rule the backend applies to uploads.
+
+WAV and MP3 cost no new dependency: `WaveFileReader` is in NAudio.Core and
+`MediaFoundationReader` in NAudio.Wasapi, both already referenced. **Not**
+`AudioFileReader` — that one lives in the NAudio meta-package, which drags in
+WinForms.
+
+### Two bugs worth not repeating
+
+- **A clip is not a stream.** Notification sounds were pushed through
+  `SpeakerPlayback.Submit`, which is a jitter buffer capped at half a second, so
+  it dropped the *beginning* of every clip sample by sample as the rest arrived
+  and only the last half second was ever heard. `PlayClip` is the separate
+  one-shot path: mixed alongside voices, not capped, always played whole.
+- **ToggleSwitch and Slider do not read `AccentFillColorDefaultBrush`.** They
+  resolve their own keys, which are baked from the Windows system accent, so they
+  stayed blue under every theme. Overriding them from code did nothing — the keys
+  have to be *declared* in `Palette.xaml` so a brush of ours is in the lookup
+  chain, and then mutated. Same shape of trap as WinUI's `AccentButtonStyle`.
 
 Remaining phase: F11 installer.
 

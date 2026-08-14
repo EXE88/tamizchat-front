@@ -65,13 +65,38 @@ if (mode == "fx")
         Console.WriteLine($"{kind,-10} dominant={hz,6:F0} Hz   rms={rms,7:F0}");
     }
 
+    // Every sound file the app ships, decoded the way the app will decode it.
+    // A clip that fails to load is a broken build, and this is the cheapest
+    // place to find that out.
+    var soundsDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds");
+    if (Directory.Exists(soundsDir))
+    {
+        Console.WriteLine();
+        Console.WriteLine("--- bundled sound files ---");
+
+        foreach (var file in Directory.GetFiles(soundsDir).OrderBy(f => f))
+        {
+            try
+            {
+                var pcm = AudioClip.Load(file);
+                var peak = pcm.Length == 0 ? 0 : pcm.Max(v => Math.Abs((int)v));
+                Console.WriteLine($"{Path.GetFileNameWithoutExtension(file),-28} " +
+                                  $"{pcm.Length / 48,6} ms   peak={peak,6}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{Path.GetFileNameWithoutExtension(file),-28} FAILED: {ex.Message}");
+            }
+        }
+    }
+
     Console.WriteLine();
     Console.WriteLine("--- soundboard ---");
 
     foreach (var clip in Enum.GetValues<SoundEffect>())
     {
         var board = new Soundboard();
-        board.Play(clip);
+        board.Play(BuiltInClips.Render(clip));
 
         var frames = 0;
         var peak = 0;
@@ -162,6 +187,7 @@ if (mode is "talk" or "listen" or "video")
 
     await using var media = new MediaSession();
     var received = 0;
+    var peakRms = 0.0;
 
     // `listen` plays what it hears out of the speakers, which is how you test
     // your own microphone: talk in the app and hear yourself come back through
@@ -181,10 +207,17 @@ if (mode is "talk" or "listen" or "video")
             speakers.Submit(frame.Identity, frame.Pcm);
         }
 
-        // Only the first of each burst is worth a line; this is 100 a second.
-        if (received++ % 100 == 0)
+        // The loudest frame in each second, which is what makes a soundboard
+        // clip visible from here: a clip is far louder than room noise, so a
+        // spike in this column is the clip actually arriving rather than just
+        // the connection being up.
+        var rms = Math.Sqrt(frame.Pcm.Select(v => (double)v * v).DefaultIfEmpty(0).Average());
+        peakRms = Math.Max(peakRms, rms);
+
+        if (++received % 100 == 0)
         {
-            Console.WriteLine($"audio    {received} frames, latest from {frame.Identity}");
+            Console.WriteLine($"audio    {received,5} frames   loudest this second={peakRms,7:F0}");
+            peakRms = 0;
         }
     };
 

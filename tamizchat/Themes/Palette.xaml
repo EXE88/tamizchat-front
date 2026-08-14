@@ -32,6 +32,28 @@
     <SolidColorBrush x:Key="TcTextSecondaryBrush" Color="#992B2B2B" />
 
     <SolidColorBrush x:Key="TcAccentBrush" Color="#2B2B2B" />
+
+    <!--
+        ToggleSwitch and Slider resolve their accent through their own keys, not
+        through AccentFillColorDefaultBrush. Declaring them here puts a brush of
+        ours in the lookup chain for the control templates to find, which is what
+        ThemeManager then mutates — the same trick the Tc* brushes rely on.
+        Without this they keep the Windows system accent and stay blue whatever
+        theme is chosen.
+    -->
+    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SliderTrackValueFill" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="SliderThumbBackground" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#2B2B2B" />
+
     <SolidColorBrush x:Key="TcAccentHoverBrush" Color="#404040" />
     <SolidColorBrush x:Key="TcOnAccentBrush" Color="#FFFFFF" />
 

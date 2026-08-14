@@ -71,7 +71,15 @@ public sealed class NavBarItem
 
     public IReadOnlyList<string> MenuOptionKeys { get; init; } = [];
 
-    public IReadOnlyList<string> MenuOptions => [.. MenuOptionKeys.Select(Loc.Get)];
+    /// <summary>
+    /// Supplies the entries at the moment the menu opens, for lists the user
+    /// edits — the soundboard. A fixed list cannot work there: adding a clip in
+    /// Settings has to show up in the bar without rebuilding the item.
+    /// </summary>
+    public Func<IReadOnlyList<string>>? MenuProvider { get; init; }
+
+    public IReadOnlyList<string> MenuOptions =>
+        MenuProvider is not null ? MenuProvider() : [.. MenuOptionKeys.Select(Loc.Get)];
 
     // --- commands ---
 

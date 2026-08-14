@@ -1,12 +1,14 @@
 using System.Text;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
 using TamizChat.Controls;
 using TamizChat.Localization;
 using TamizChat.Navigation;
 using TamizChat.Pages;
 using TamizChat.Audio;
 using TamizChat.Services;
+using TamizChat.Overlays;
 using TamizChat.Video;
 using TamizChat.Theming;
 
@@ -54,10 +56,30 @@ public sealed partial class MainWindow : Window
 
         ServerStore.Load();
 
+        SoundboardLibrary.Instance.EnsureDefaults();
+        EventSounds.Instance.Enabled = SettingsStore.Current.EventSoundsEnabled;
+        EventSounds.Instance.Volume = SettingsStore.Current.EventSoundsVolume;
+
         NavigationService.Instance.Initialize(ContentFrame);
-        NavigationService.Instance.Navigated += (_, _) => SyncShell();
+        NavigationService.Instance.Navigated += (_, _) =>
+        {
+            SyncShell();
+            SyncInlineChat();
+        };
+
+        ServerSession.Instance.Changed += (_, _) =>
+        {
+            SyncInlineChat();
+            OverlayService.Instance.Apply();
+        };
         NavBar.ItemInvoked += OnNavItemInvoked;
         NavBar.StateChanged += OnNavStateChanged;
+
+        // While a soundboard clip plays, Effects becomes Stop.
+        VoiceService.Instance.Changed += (_, _) => NavBar.SetOverride(
+            "effects",
+            VoiceService.Instance.IsPlayingEffect ? "" : null,
+            VoiceService.Instance.IsPlayingEffect ? Loc.Get("Effect.Stop") : null);
 
         NavigationService.Instance.Navigate(typeof(HomePage), NavTransition.None);
 
@@ -84,6 +106,8 @@ public sealed partial class MainWindow : Window
         {
             _ = AutoJoinAsync(room);
         }
+
+        Closed += (_, _) => OverlayService.Instance.Close();
 
         if (Environment.GetEnvironmentVariable("TAMIZCHAT_SELFTEST") == "1")
         {
@@ -234,13 +258,39 @@ public sealed partial class MainWindow : Window
                 _ = SafelyAsync(() => ShareScreenAsync(e.IsOn, e.Item));
                 break;
 
+            case "inline":
+                SettingsStore.Current.InlineChatEnabled = e.IsOn;
+                SettingsStore.Save();
+                SyncInlineChat();
+
+                // Focus follows the toggle: turning it on means you want to type
+                // now, and reaching for the mouse afterwards defeats the point.
+                if (e.IsOn)
+                {
+                    InlineChatBox.Focus(FocusState.Programmatic);
+                }
+
+                break;
+
             // Menus report the chosen entry by its position in the item's list,
             // found by index rather than by the label — the label is translated,
             // so matching on it would break the moment the language changes.
             case "effects":
-                if (IndexOfOption(e) is { } clip)
+                // While a clip is playing the item is a Stop button, so pressing
+                // it again cuts the clip rather than opening the menu — that is
+                // the whole point of being able to stop one you set off by
+                // accident.
+                if (VoiceService.Instance.IsPlayingEffect)
                 {
-                    _ = SafelyAsync(() => VoiceService.Instance.PlayEffectAsync((SoundEffect)clip));
+                    VoiceService.Instance.StopEffect();
+                    break;
+                }
+
+                if (IndexOfOption(e) is { } index
+                    && index < SoundboardLibrary.Instance.Entries.Count)
+                {
+                    _ = SafelyAsync(() =>
+                        VoiceService.Instance.PlayEffectAsync(SoundboardLibrary.Instance.Entries[index]));
                 }
 
                 break;
@@ -260,6 +310,57 @@ public sealed partial class MainWindow : Window
     {
         var index = e.Item.MenuOptions.ToList().IndexOf(e.Option ?? "");
         return index < 0 ? null : index;
+    }
+
+    /// <summary>
+    /// Shows the quick-chat strip only where it can do anything: inside a
+    /// server, switched on, and connected.
+    /// </summary>
+    private void SyncInlineChat()
+    {
+        var usable = SettingsStore.Current.InlineChatEnabled
+            && ServerSession.Instance.IsConnected
+            && ShellItems.IsInServer(NavigationService.Instance.CurrentPageType);
+
+        InlineChat.Visibility = usable ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnInlineChatKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            _ = SendInlineAsync();
+        }
+    }
+
+    private void OnInlineChatSend(object sender, RoutedEventArgs e) => _ = SendInlineAsync();
+
+    /// <summary>
+    /// Sends what is in the strip and clears it.
+    ///
+    /// Nothing is shown back: this is a send-only surface by design, and the
+    /// messages overlay is what the other half of the conversation arrives on.
+    /// </summary>
+    private async Task SendInlineAsync()
+    {
+        var text = InlineChatBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        InlineChatBox.Text = "";
+
+        try
+        {
+            await ServerSession.Instance.SendMessageAsync(text);
+        }
+        catch (Exception)
+        {
+            // Put it back rather than losing what they typed.
+            InlineChatBox.Text = text;
+        }
     }
 
     /// <summary>

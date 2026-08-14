@@ -1,4 +1,5 @@
 using TamizChat.Localization;
+using TamizChat.Services;
 using TamizChat.Pages;
 
 namespace TamizChat.Navigation;
@@ -78,7 +79,7 @@ public static class ShellItems
             Glyph = GlyphMusic,
             LabelKey = "Nav.Effects",
             Kind = NavItemKind.Menu,
-            MenuOptionKeys = ["Effect.Airhorn", "Effect.Applause", "Effect.DrumRoll", "Effect.Rimshot", "Effect.Crickets"],
+            MenuProvider = () => [.. SoundboardLibrary.Instance.Entries.Select(e => e.Name)],
         },
         new()
         {
@@ -90,6 +91,13 @@ public static class ShellItems
         },
 
         new() { Key = "paint", Glyph = GlyphEdit, LabelKey = "Nav.Paint", Page = typeof(PaintPage) },
+        new()
+        {
+            Key = "inline",
+            Glyph = GlyphMessage,
+            LabelKey = "Nav.InlineChat",
+            Kind = NavItemKind.Toggle,
+        },
         new()
         {
             Key = "disconnect",

@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using TamizChat.Theming;
 
+using TamizChat.Overlays;
+
 namespace TamizChat.Services;
 
 /// <summary>
@@ -18,6 +20,46 @@ public sealed class AppSettings
 
     /// <summary>BCP-47 tag. English is the default; "fa" is the other option.</summary>
     public string Language { get; set; } = "en";
+
+    /// <summary>The soundboard's contents, in the order the menu lists them.</summary>
+    public List<SoundboardEntry> Soundboard { get; set; } = [];
+
+    /// <summary>
+    /// Whether the built-in clips have ever been put in place.
+    ///
+    /// Separate from the list being empty, because an empty list is a valid
+    /// choice — somebody who deleted every clip should not have them all
+    /// reappear on the next launch.
+    /// </summary>
+    public bool SoundboardInitialised { get; set; }
+
+    /// <summary>Notification sounds: on/off and how loud, 0 to 1.</summary>
+    public bool EventSoundsEnabled { get; set; } = true;
+
+    public double EventSoundsVolume { get; set; } = 1.0;
+
+    // --- overlays ---
+
+    public bool MembersOverlayEnabled { get; set; }
+
+    public OverlayCorner MembersOverlayCorner { get; set; } = OverlayCorner.TopRight;
+
+    public double MembersOverlayOpacity { get; set; } = 0.9;
+
+    public bool MessagesOverlayEnabled { get; set; }
+
+    public OverlayCorner MessagesOverlayCorner { get; set; } = OverlayCorner.TopLeft;
+
+    public double MessagesOverlayOpacity { get; set; } = 0.9;
+
+    /// <summary>How many message cards may be on screen at once.</summary>
+    public int MessagesOverlayMax { get; set; } = 4;
+
+    /// <summary>How long a card stays before it fades.</summary>
+    public double MessagesOverlayFadeSeconds { get; set; } = 6;
+
+    /// <summary>The send-only chat strip above the bottom bar.</summary>
+    public bool InlineChatEnabled { get; set; }
 
     /// <summary>
     /// This installation's identity, generated once and kept forever. It is the

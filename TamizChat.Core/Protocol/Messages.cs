@@ -488,3 +488,66 @@ public sealed class MediaStateEvent
     [JsonPropertyName("state")]
     public MediaSetState State { get; set; } = new();
 }
+
+/// <summary>`room.member_joined` / `room.member_left`.</summary>
+public sealed class RoomMemberEvent
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("user")]
+    public User User { get; set; } = new();
+
+    /// <summary>
+    /// Why they arrived or left: `switched_room`, `left`, `disconnected`,
+    /// `moved_by_admin`, `room_deleted`. This is the only thing that separates a
+    /// moderator moving somebody from that person walking out on their own.
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+}
+
+/// <summary>`room.left` — sent only to the person who left.</summary>
+public sealed class RoomLeftEvent
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+}
+
+/// <summary>`user.left` — a disconnection from the server, not from a room.</summary>
+public sealed class UserLeftEvent
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+}
+
+/// <summary>`user.kicked` / `user.banned` / `user.muted` / `user.unmuted`.</summary>
+public sealed class SanctionEvent
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    [JsonPropertyName("by_uuid")]
+    public string ByUuid { get; set; } = "";
+
+    [JsonPropertyName("by_username")]
+    public string ByUsername { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+}

@@ -385,4 +385,76 @@
   <data name="Home.HasVoice" xml:space="preserve">
     <value>voice</value>
   </data>
+  <data name="Effect.Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="Settings.Soundboard" xml:space="preserve">
+    <value>Soundboard</value>
+  </data>
+  <data name="Settings.SoundboardHelp" xml:space="preserve">
+    <value>Clips you can play into the room. Everyone in the room hears them.</value>
+  </data>
+  <data name="Settings.AddClip" xml:space="preserve">
+    <value>Add clip</value>
+  </data>
+  <data name="Settings.Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Settings.ClipName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Settings.EventSounds" xml:space="preserve">
+    <value>Notification sounds</value>
+  </data>
+  <data name="Settings.EventSoundsHelp" xml:space="preserve">
+    <value>Played only on your machine, when people come and go.</value>
+  </data>
+  <data name="Settings.Volume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Settings.AddClipFailed" xml:space="preserve">
+    <value>That file could not be read: {0}</value>
+  </data>
+  <data name="Nav.InlineChat" xml:space="preserve">
+    <value>Quick chat</value>
+  </data>
+  <data name="Settings.Overlays" xml:space="preserve">
+    <value>Overlays</value>
+  </data>
+  <data name="Settings.MembersOverlay" xml:space="preserve">
+    <value>Members overlay</value>
+  </data>
+  <data name="Settings.MembersOverlayHelp" xml:space="preserve">
+    <value>Shows your room and who is talking, on top of everything else.</value>
+  </data>
+  <data name="Settings.MessagesOverlay" xml:space="preserve">
+    <value>Messages overlay</value>
+  </data>
+  <data name="Settings.MessagesOverlayHelp" xml:space="preserve">
+    <value>New messages appear over the screen and fade away.</value>
+  </data>
+  <data name="Settings.Position" xml:space="preserve">
+    <value>Position</value>
+  </data>
+  <data name="Settings.Opacity" xml:space="preserve">
+    <value>Opacity</value>
+  </data>
+  <data name="Settings.MaxMessages" xml:space="preserve">
+    <value>Messages at once</value>
+  </data>
+  <data name="Settings.FadeAfter" xml:space="preserve">
+    <value>Fade after (seconds)</value>
+  </data>
+  <data name="Corner.TopLeft" xml:space="preserve">
+    <value>Top left</value>
+  </data>
+  <data name="Corner.TopRight" xml:space="preserve">
+    <value>Top right</value>
+  </data>
+  <data name="Corner.BottomLeft" xml:space="preserve">
+    <value>Bottom left</value>
+  </data>
+  <data name="Corner.BottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
 </root>

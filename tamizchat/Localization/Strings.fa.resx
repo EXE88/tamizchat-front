@@ -385,4 +385,76 @@
   <data name="Home.HasVoice" xml:space="preserve">
     <value>صوت</value>
   </data>
+  <data name="Effect.Stop" xml:space="preserve">
+    <value>توقف</value>
+  </data>
+  <data name="Settings.Soundboard" xml:space="preserve">
+    <value>صداهای دستی</value>
+  </data>
+  <data name="Settings.SoundboardHelp" xml:space="preserve">
+    <value>کلیپ‌هایی که در اتاق پخش می‌کنی. همه‌ی افراد اتاق می‌شنوند.</value>
+  </data>
+  <data name="Settings.AddClip" xml:space="preserve">
+    <value>افزودن کلیپ</value>
+  </data>
+  <data name="Settings.Remove" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Settings.ClipName" xml:space="preserve">
+    <value>نام</value>
+  </data>
+  <data name="Settings.EventSounds" xml:space="preserve">
+    <value>صداهای اعلان</value>
+  </data>
+  <data name="Settings.EventSoundsHelp" xml:space="preserve">
+    <value>فقط روی دستگاه خودت پخش می‌شود، وقتی کسی می‌آید یا می‌رود.</value>
+  </data>
+  <data name="Settings.Volume" xml:space="preserve">
+    <value>بلندی صدا</value>
+  </data>
+  <data name="Settings.AddClipFailed" xml:space="preserve">
+    <value>این فایل خوانده نشد: {0}</value>
+  </data>
+  <data name="Nav.InlineChat" xml:space="preserve">
+    <value>چت سریع</value>
+  </data>
+  <data name="Settings.Overlays" xml:space="preserve">
+    <value>روکش‌ها</value>
+  </data>
+  <data name="Settings.MembersOverlay" xml:space="preserve">
+    <value>روکش اعضا</value>
+  </data>
+  <data name="Settings.MembersOverlayHelp" xml:space="preserve">
+    <value>اتاق و اینکه چه کسی حرف می‌زند را روی همه‌چیز نشان می‌دهد.</value>
+  </data>
+  <data name="Settings.MessagesOverlay" xml:space="preserve">
+    <value>روکش پیام‌ها</value>
+  </data>
+  <data name="Settings.MessagesOverlayHelp" xml:space="preserve">
+    <value>پیام‌های تازه روی صفحه ظاهر می‌شوند و محو می‌شوند.</value>
+  </data>
+  <data name="Settings.Position" xml:space="preserve">
+    <value>موقعیت</value>
+  </data>
+  <data name="Settings.Opacity" xml:space="preserve">
+    <value>شفافیت</value>
+  </data>
+  <data name="Settings.MaxMessages" xml:space="preserve">
+    <value>حداکثر پیام هم‌زمان</value>
+  </data>
+  <data name="Settings.FadeAfter" xml:space="preserve">
+    <value>محو شدن پس از (ثانیه)</value>
+  </data>
+  <data name="Corner.TopLeft" xml:space="preserve">
+    <value>بالا چپ</value>
+  </data>
+  <data name="Corner.TopRight" xml:space="preserve">
+    <value>بالا راست</value>
+  </data>
+  <data name="Corner.BottomLeft" xml:space="preserve">
+    <value>پایین چپ</value>
+  </data>
+  <data name="Corner.BottomRight" xml:space="preserve">
+    <value>پایین راست</value>
+  </data>
 </root>
