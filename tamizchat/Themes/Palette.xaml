@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The app's whole colour vocabulary. Every brush here is a single shared
+    instance whose Color is rewritten by ThemeManager when the theme changes, so
+    switching themes updates everything already on screen without rebuilding the
+    visual tree or re-merging dictionaries.
+
+    The colours below are only placeholders; ThemeManager overwrites all of them
+    during startup.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Painted over the window backdrop. Semi-transparent by design. -->
+    <SolidColorBrush x:Key="TcTintBrush" Color="#59FFFFFF" />
+
+    <!-- Cards, panels, the floating navigation bar. -->
+    <SolidColorBrush x:Key="TcSurfaceBrush" Color="#B0FFFFFF" />
+    <SolidColorBrush x:Key="TcSurfaceHoverBrush" Color="#B0D4D4D4" />
+    <SolidColorBrush x:Key="TcBorderBrush" Color="#80B3B3B3" />
+
+    <SolidColorBrush x:Key="TcTextPrimaryBrush" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="TcTextSecondaryBrush" Color="#992B2B2B" />
+
+    <SolidColorBrush x:Key="TcAccentBrush" Color="#2B2B2B" />
+    <SolidColorBrush x:Key="TcAccentHoverBrush" Color="#404040" />
+    <SolidColorBrush x:Key="TcOnAccentBrush" Color="#FFFFFF" />
+
+    <!-- Shared shape values, so rounding is consistent everywhere. -->
+    <CornerRadius x:Key="TcCardCornerRadius">12</CornerRadius>
+    <CornerRadius x:Key="TcBarCornerRadius">20</CornerRadius>
+
+</ResourceDictionary>

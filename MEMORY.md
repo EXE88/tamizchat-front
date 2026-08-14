@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-14 — phase F0 and F1 done
+Last updated: 2026-08-14 — phases F0, F1 and F2 done
 
 ---
 
@@ -108,10 +108,39 @@ human looking at the window.
 
 **Phase F1 (dev backend) — done.** See "Running the dev backend" below.
 
-Remaining phases are tracked as tasks: F2 themes/backdrops, F3 navigation shell,
-F4 protocol client, F5 user simulator, F6 server list and room grid, F7
-chat/files/paint, F8 localization, F9 LiveKit media, F10 audio effects, F11
-installer.
+**Phase F2 (theme, backdrops, title bar) — done.** All six palettes and all four
+backdrops apply and persist; verified both by the self-test sweep and by
+screenshots of the running window.
+
+Remaining phases are tracked as tasks: F3 navigation shell, F4 protocol client,
+F5 user simulator, F6 server list and room grid, F7 chat/files/paint, F8
+localization, F9 LiveKit media, F10 audio effects, F11 installer.
+
+### How the theme system works
+
+- `Themes/Palette.xaml` declares every brush the app draws with, as shared
+  instances. `Theming/ThemeManager` rewrites their `Color` when the theme
+  changes. Swapping merged ResourceDictionaries at runtime does **not** reliably
+  re-evaluate `StaticResource` references in WinUI; mutating a brush that
+  everything already points at always does.
+- `ThemeManager` also overrides `AccentFillColorDefaultBrush` and friends, so
+  stock WinUI controls pick up the family's accent.
+- DevWinUI's `ThemeService` applies the backdrop (`BackdropType.Mica`/`MicaAlt`/
+  `Acrylic`/`AcrylicThin`). It is configured with `ConfigureAutoSave(false)`
+  because our own `settings.json` is the source of truth. There is a fallback
+  path that sets `Window.SystemBackdrop` directly if DevWinUI ever throws.
+- New UI must use the `Tc*` brushes, never hard-coded colours, or it will not
+  follow the theme.
+
+### Two DPI traps that already cost time
+
+- `AppWindow.Resize` takes **physical** pixels. On this machine (250% scaling) a
+  "1100x760" window only gets 440x304 of layout space and the page is clipped.
+  `MainWindow.SizeAndCentre` multiplies by `GetDpiForWindow / 96` to fix this.
+- The screenshot script must call `SetProcessDPIAware()` and force the window
+  topmost with `SetWindowPos`, or it captures the wrong screen region and
+  whatever window happens to be in front. The script lives in the scratchpad as
+  `shot.ps1`.
 
 ## Running the dev backend
 
