@@ -871,4 +871,19 @@
   <data name="Admin.UploadedCount" xml:space="preserve">
     <value>{0} tracks added</value>
   </data>
+  <data name="Bot.Idle" xml:space="preserve">
+    <value>not playing</value>
+  </data>
+  <data name="Bot.Next" xml:space="preserve">
+    <value>Next track</value>
+  </data>
+  <data name="Bot.Previous" xml:space="preserve">
+    <value>Previous track</value>
+  </data>
+  <data name="Bot.BringHere" xml:space="preserve">
+    <value>Bring to my room</value>
+  </data>
+  <data name="Bot.MoveTo" xml:space="preserve">
+    <value>Move to</value>
+  </data>
 </root>

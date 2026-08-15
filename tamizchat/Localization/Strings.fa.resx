@@ -871,4 +871,19 @@
   <data name="Admin.UploadedCount" xml:space="preserve">
     <value>{0} قطعه اضافه شد</value>
   </data>
+  <data name="Bot.Idle" xml:space="preserve">
+    <value>در حال پخش نیست</value>
+  </data>
+  <data name="Bot.Next" xml:space="preserve">
+    <value>قطعه‌ی بعدی</value>
+  </data>
+  <data name="Bot.Previous" xml:space="preserve">
+    <value>قطعه‌ی قبلی</value>
+  </data>
+  <data name="Bot.BringHere" xml:space="preserve">
+    <value>بیاورش به اتاق من</value>
+  </data>
+  <data name="Bot.MoveTo" xml:space="preserve">
+    <value>انتقال به</value>
+  </data>
 </root>

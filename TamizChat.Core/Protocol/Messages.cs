@@ -125,6 +125,14 @@ public sealed class Welcome
     [JsonPropertyName("permissions")]
     public List<string> Permissions { get; set; } = [];
 
+    /// <summary>
+    /// The server's bots and what each is doing. They arrive here rather than as
+    /// room members, so a client that wants to draw them in a room has to keep
+    /// this list and follow `bot.state`.
+    /// </summary>
+    [JsonPropertyName("bots")]
+    public List<Bot> Bots { get; set; } = [];
+
     [JsonPropertyName("limits")]
     public Limits Limits { get; set; } = new();
 }

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
+using TamizChat.Services;
 
 namespace TamizChat.Controls;
 
@@ -128,11 +129,15 @@ public sealed class RoomTile : Grid
         BorderThickness = new Thickness(isMine ? 2 : 1);
         BorderBrush = (Brush)Application.Current.Resources[isMine ? "TcAccentBrush" : "TcBorderBrush"];
 
-        var hasMembers = room.Members.Count > 0;
-        _empty.Visibility = hasMembers ? Visibility.Collapsed : Visibility.Visible;
-        _scroller.Visibility = hasMembers ? Visibility.Visible : Visibility.Collapsed;
+        // Bots count as occupants: a room with a bot playing in it is not empty,
+        // whatever the member list says.
+        var bots = ServerSession.Instance.BotsIn(room.Id);
+        var occupied = room.Members.Count > 0 || bots.Count > 0;
 
-        _members.SetMembers(room.Members);
+        _empty.Visibility = occupied ? Visibility.Collapsed : Visibility.Visible;
+        _scroller.Visibility = occupied ? Visibility.Visible : Visibility.Collapsed;
+
+        _members.SetOccupants(room.Members, bots);
         _members.SetViewport(_scroller.ViewportWidth, _scroller.ViewportHeight);
     }
 }

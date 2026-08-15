@@ -57,6 +57,21 @@ public sealed class ServerSession
     /// <summary>Every role the server defines, for the grant/revoke menu.</summary>
     public IReadOnlyList<Role> Roles { get; private set; } = [];
 
+    /// <summary>
+    /// Every bot on the server, kept live.
+    ///
+    /// A bot is not a room member on the wire — it arrives in the welcome frame
+    /// and changes through bot.state — so the room grid can only draw one if the
+    /// session keeps the list. Without this the bot really was in the room, on
+    /// the server and in LiveKit, and simply invisible.
+    /// </summary>
+    public IReadOnlyList<Bot> Bots { get; private set; } = [];
+
+    /// <summary>The bots sitting in one room, in a stable order.</summary>
+    public IReadOnlyList<Bot> BotsIn(string roomId) => string.IsNullOrEmpty(roomId)
+        ? []
+        : Bots.Where(b => b.RoomId == roomId).ToList();
+
     public bool Can(string permission) => Permissions.Contains(permission);
 
     /// <summary>True when any moderation action at all is available.</summary>
@@ -140,6 +155,7 @@ public sealed class ServerSession
         MyRoomId = welcome.You.RoomId;
         Permissions = welcome.Permissions;
         Roles = welcome.Roles;
+        Bots = welcome.Bots;
         Raise();
 
         Cue(AppSound.YouJoinedServer);
@@ -152,6 +168,7 @@ public sealed class ServerSession
         Server = null;
         Rooms = [];
         Users = [];
+        Bots = [];
         MyRoomId = "";
 
         if (client is not null)
@@ -533,13 +550,13 @@ public sealed class ServerSession
         return TamizChatClient.Deserialize<BotListReply>(reply)?.Bots ?? [];
     }
 
-    public Task ControlBotAsync(string botId, string action, int? trackIndex = null) =>
-        RequireClient().RequestAsync(
+    public Task<Bot?> ControlBotAsync(string botId, string action, int? trackIndex = null) =>
+        BotRequestAsync(
             MessageTypes.BotControl,
             new BotControl { BotId = botId, Action = action, TrackIndex = trackIndex });
 
-    public Task MoveBotAsync(string botId, string roomId) =>
-        RequireClient().RequestAsync(MessageTypes.BotMove, new BotMove { BotId = botId, RoomId = roomId });
+    public Task<Bot?> MoveBotAsync(string botId, string roomId) =>
+        BotRequestAsync(MessageTypes.BotMove, new BotMove { BotId = botId, RoomId = roomId });
 
     // --- bots an administrator configures ---
     //
@@ -547,12 +564,34 @@ public sealed class ServerSession
     // its own and the music arrives by upload, below. A path typed by a client
     // would be a path on somebody else's machine, and the server refuses one.
 
+    /// <summary>Re-reads the bot list, for the paths that do not get an event.</summary>
+    public async Task RefreshBotsAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        var reply = await _client.RequestAsync(MessageTypes.BotList).ConfigureAwait(true);
+        if (TamizChatClient.Deserialize<BotListReply>(reply) is { } list)
+        {
+            Bots = list.Bots;
+            Raise();
+        }
+    }
+
     public Task<Bot?> CreateBotAsync(BotSpec spec) => BotRequestAsync(MessageTypes.BotCreate, spec);
 
     public Task<Bot?> UpdateBotAsync(BotSpec spec) => BotRequestAsync(MessageTypes.BotUpdate, spec);
 
-    public Task DeleteBotAsync(string botId) =>
-        RequireClient().RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = botId });
+    public async Task DeleteBotAsync(string botId)
+    {
+        await RequireClient().RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = botId })
+            .ConfigureAwait(true);
+
+        Bots = Bots.Where(b => b.Id != botId).ToList();
+        Raise();
+    }
 
     /// <summary>The tracks a bot would play, in order.</summary>
     public Task<IReadOnlyList<BotTrack>> GetBotQueueAsync(string botId) => TracksAsync(botId, "");
@@ -659,7 +698,21 @@ public sealed class ServerSession
     private async Task<Bot?> BotRequestAsync(string type, object payload)
     {
         var reply = await RequireClient().RequestAsync(type, payload).ConfigureAwait(true);
-        return TamizChatClient.Deserialize<Bot>(reply);
+        var bot = TamizChatClient.Deserialize<Bot>(reply);
+
+        // The server leaves the actor out of the bot.state broadcast — the reply
+        // is their copy — so the list is patched here or it would go stale for
+        // whoever pressed the button.
+        if (bot is not null && bot.Id.Length > 0)
+        {
+            var next = Bots.Where(b => b.Id != bot.Id).ToList();
+            next.Add(bot);
+            next.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+            Bots = next;
+            Raise();
+        }
+
+        return bot;
     }
 
     /// <summary>Throws rather than silently doing nothing when there is no connection.</summary>
@@ -780,6 +833,29 @@ public sealed class ServerSession
 
                 MyRoomId = "";
                 QueueRefresh();
+                break;
+
+            case MessageTypes.BotState:
+                // An id we do not know means a bot was just created, so this is
+                // add-or-replace rather than update — the protocol says so.
+                if (e.As<Bot>() is { } bot && bot.Id.Length > 0)
+                {
+                    var next = Bots.Where(b => b.Id != bot.Id).ToList();
+                    next.Add(bot);
+                    next.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+                    Bots = next;
+                    _ui.TryEnqueue(Raise);
+                }
+
+                break;
+
+            case MessageTypes.BotRemoved:
+                if (e.As<BotRef>() is { } removed)
+                {
+                    Bots = Bots.Where(b => b.Id != removed.BotId).ToList();
+                    _ui.TryEnqueue(Raise);
+                }
+
                 break;
 
             case MessageTypes.UserRolesChanged:

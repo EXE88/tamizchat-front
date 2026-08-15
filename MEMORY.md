@@ -381,6 +381,24 @@ Six complaints, and what each turned out to be:
    confirmation, and revoking has its own "Take a role" menu: it was only ever
    possible by clicking the role tag, which nobody found.
 
+### Bots in the room grid
+
+A bot is **not** a room member on the wire: it arrives in `welcome.bots` and
+changes through `bot.state`. Until this round the client kept no list of them at
+all — `GetBotsAsync` was called only by the admin panel — so a bot that really
+was in the room, on the server and in LiveKit, was invisible in the room grid.
+That is what "the bot never joins" meant.
+
+- `ServerSession.Bots` is kept live from the welcome frame, `bot.state` and
+  `bot.removed`, plus the actor's own replies (the server leaves the actor out
+  of the broadcast).
+- `MemberGrid.SetOccupants(members, bots)` lays people and bots out together;
+  `BotCell` is keyed by the LiveKit identity `bot-<id>`, so the speaking ring
+  from the active-speaker list lands on it with no translation.
+- `BotMenu` is right-click on the tile: play/stop, next/prev, bring to my room,
+  move to, take out — gated by `control_bots`, like the member menu.
+- A room with a bot in it is not "empty" any more.
+
 **NEXT: F11, the installer.**
 
 ### What needs backend work

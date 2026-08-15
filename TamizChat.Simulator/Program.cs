@@ -477,7 +477,12 @@ if (mode == "seedbot")
 
     var bot = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
         MessageTypes.BotCreate,
-        new BotSpec { Name = "Radio", Color = "#1abc9c", Loop = true }))!;
+        new BotSpec
+        {
+            Name = "Radio",
+            Color = "#1abc9c",
+            Loop = Environment.GetEnvironmentVariable("TAMIZSIM_ONE") is null,
+        }))!;
 
     var list = TamizChatClient.Deserialize<BotPlaylist>(await client.RequestAsync(
         MessageTypes.BotPlaylistCreate,
@@ -510,7 +515,14 @@ if (mode == "seedbot")
 
     Console.WriteLine($"  source   {Path.GetFileName(sample)}");
 
-    foreach (var title in new[] { "01 opening.ogg", "02 middle eight.ogg", "03 closing.ogg" })
+    // One track when TAMIZSIM_ONE is set: with loop off and a single file, the
+    // queue cannot advance, so one ingress can be watched from start to finish
+    // without our own "next track" replacing it.
+    var titles = Environment.GetEnvironmentVariable("TAMIZSIM_ONE") is null
+        ? new[] { "01 opening.ogg", "02 middle eight.ogg", "03 closing.ogg" }
+        : ["01 opening.ogg"];
+
+    foreach (var title in titles)
     {
         var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.ogg");
         File.Copy(sample, temp, overwrite: true);

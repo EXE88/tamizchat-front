@@ -22,16 +22,31 @@ public sealed class MemberGrid : Grid
 {
     private const double Gap = 8;
 
-    private readonly Dictionary<string, MemberCell> _cells = [];
+    private readonly Dictionary<string, OccupantCell> _cells = [];
     private IReadOnlyList<User> _members = [];
+    private IReadOnlyList<Bot> _bots = [];
     private double _viewportWidth;
     private double _viewportHeight;
 
-    public void SetMembers(IReadOnlyList<User> members)
+    /// <summary>
+    /// Who and what is in the room.
+    ///
+    /// Bots get cells of their own, after the people. They are not room members
+    /// on the wire — the server keeps them in a separate list — but to anyone
+    /// looking at a room a bot that is playing music is obviously *in* it, and
+    /// leaving it out was why a bot appeared to never join.
+    ///
+    /// A cell is keyed by its LiveKit identity, which for a bot is "bot-&lt;id&gt;",
+    /// so the speaking ring lands on the right tile with no translation.
+    /// </summary>
+    public void SetOccupants(IReadOnlyList<User> members, IReadOnlyList<Bot> bots)
     {
         _members = members;
+        _bots = bots;
 
-        foreach (var gone in _cells.Keys.Except(members.Select(m => m.ClientUuid)).ToList())
+        var live = members.Select(m => m.ClientUuid).Concat(bots.Select(BotIdentity)).ToHashSet();
+
+        foreach (var gone in _cells.Keys.Except(live).ToList())
         {
             Children.Remove(_cells[gone]);
             _cells.Remove(gone);
@@ -39,19 +54,37 @@ public sealed class MemberGrid : Grid
 
         foreach (var member in members)
         {
-            if (_cells.TryGetValue(member.ClientUuid, out var existing))
+            if (_cells.TryGetValue(member.ClientUuid, out var existing) && existing is MemberCell cell)
             {
-                existing.Update(member);
+                cell.Update(member);
                 continue;
             }
 
-            var cell = new MemberCell(member);
-            _cells[member.ClientUuid] = cell;
-            Children.Add(cell);
+            var created = new MemberCell(member);
+            _cells[member.ClientUuid] = created;
+            Children.Add(created);
+        }
+
+        foreach (var bot in bots)
+        {
+            var key = BotIdentity(bot);
+
+            if (_cells.TryGetValue(key, out var existing) && existing is BotCell cell)
+            {
+                cell.Update(bot);
+                continue;
+            }
+
+            var created = new BotCell(bot);
+            _cells[key] = created;
+            Children.Add(created);
         }
 
         Arrange();
     }
+
+    /// <summary>How LiveKit names a bot's participant. The server builds it the same way.</summary>
+    internal static string BotIdentity(Bot bot) => "bot-" + bot.Id;
 
     /// <summary>
     /// Rings whoever is talking.
@@ -101,18 +134,20 @@ public sealed class MemberGrid : Grid
 
     private void Arrange()
     {
-        if (_members.Count == 0 || _viewportWidth <= 0 || _viewportHeight <= 0)
+        var keys = _members.Select(m => m.ClientUuid).Concat(_bots.Select(BotIdentity)).ToList();
+
+        if (keys.Count == 0 || _viewportWidth <= 0 || _viewportHeight <= 0)
         {
             Width = Math.Max(0, _viewportWidth);
             Height = 0;
             return;
         }
 
-        var slots = TileLayout.Arrange(_members.Count, _viewportWidth, _viewportHeight, Gap);
+        var slots = TileLayout.Arrange(keys.Count, _viewportWidth, _viewportHeight, Gap);
 
-        for (var i = 0; i < _members.Count && i < slots.Length; i++)
+        for (var i = 0; i < keys.Count && i < slots.Length; i++)
         {
-            if (!_cells.TryGetValue(_members[i].ClientUuid, out var cell))
+            if (!_cells.TryGetValue(keys[i], out var cell))
             {
                 continue;
             }
@@ -127,12 +162,34 @@ public sealed class MemberGrid : Grid
         }
 
         Width = _viewportWidth;
-        Height = TileLayout.ContentHeight(_members.Count, _viewportHeight, Gap);
+        Height = TileLayout.ContentHeight(keys.Count, _viewportHeight, Gap);
+    }
+}
+
+/// <summary>
+/// What the grid can hold: a person or a bot. Both are a tile that resizes, can
+/// be ringed while it is making sound, and may show video — a bot never does,
+/// which is why the video parts have harmless defaults here.
+/// </summary>
+internal abstract class OccupantCell : Grid
+{
+    public abstract void Resize(double width, double height);
+
+    public virtual void SetSpeaking(bool speaking)
+    {
+    }
+
+    public virtual void SetVideoFrame(RemoteVideoFrame frame)
+    {
+    }
+
+    public virtual void ClearVideo(VideoKind kind)
+    {
     }
 }
 
 /// <summary>One person's cell: their avatar and name, centred.</summary>
-internal sealed class MemberCell : Grid
+internal sealed class MemberCell : OccupantCell
 {
     private readonly AvatarView _avatar;
     private readonly TextBlock _name;
@@ -239,7 +296,7 @@ internal sealed class MemberCell : Grid
         }
     }
 
-    public void SetSpeaking(bool speaking) => _avatar.IsSpeaking = speaking;
+    public override void SetSpeaking(bool speaking) => _avatar.IsSpeaking = speaking;
 
     /// <summary>
     /// Shows a frame of this person's camera or screen in place of their avatar.
@@ -248,7 +305,7 @@ internal sealed class MemberCell : Grid
     /// The alternative — queueing them — builds a backlog the moment the UI
     /// thread is busy, and stale video is worse than fewer frames.
     /// </summary>
-    public void SetVideoFrame(RemoteVideoFrame frame)
+    public override void SetVideoFrame(RemoteVideoFrame frame)
     {
         if (_videoBusy || frame.Width <= 0 || frame.Height <= 0)
         {
@@ -269,7 +326,7 @@ internal sealed class MemberCell : Grid
     }
 
     /// <summary>Drops back to the avatar when a track stops.</summary>
-    public void ClearVideo(VideoKind kind)
+    public override void ClearVideo(VideoKind kind)
     {
         if (_videoKind != kind)
         {
@@ -317,7 +374,7 @@ internal sealed class MemberCell : Grid
     /// Scales the avatar to the cell. A quarter-sized cell on a small tile would
     /// otherwise be mostly avatar with the name clipped off the bottom.
     /// </summary>
-    public void Resize(double width, double height)
+    public override void Resize(double width, double height)
     {
         var shortest = Math.Min(width, height);
         var size = Math.Clamp(shortest * 0.38, 22, 96);
