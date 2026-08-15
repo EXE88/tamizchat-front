@@ -31,6 +31,7 @@ public static class ShellItems
     private const string GlyphBolt = "";
     private const string GlyphEdit = "";
     private const string GlyphCancel = "";
+    private const string GlyphShield = "";
 
     /// <summary>Home sits in the middle, with the list on one side and settings on the other.</summary>
     public static readonly IReadOnlyList<NavBarItem> PreServer =
@@ -98,6 +99,10 @@ public static class ShellItems
             LabelKey = "Nav.InlineChat",
             Kind = NavItemKind.Toggle,
         },
+        // Only ever shown to somebody who can actually use it; see
+        // ShellItems.InServerFor.
+        new() { Key = "admin", Glyph = GlyphShield, LabelKey = "Nav.AdminPanel", Page = typeof(AdminPage) },
+
         new()
         {
             Key = "disconnect",
@@ -108,7 +113,31 @@ public static class ShellItems
         },
     ];
 
+    /// <summary>
+    /// The in-server items this person should see.
+    ///
+    /// The admin entry is dropped for everybody who cannot use it. That is
+    /// tidiness, not security — the server re-checks every request — but a menu
+    /// full of things that only ever fail is worse than a shorter menu.
+    /// </summary>
+    public static IReadOnlyList<NavBarItem> InServerFor(IReadOnlyCollection<string> permissions)
+    {
+        var admin = permissions.Any(p =>
+            p is "manage_rooms" or "manage_roles" or "kick" or "ban" or "mute" or "control_bots");
+
+        // Both variants are cached and returned as the *same instance* every
+        // time. The bar only rebuilds its buttons when the item set changes by
+        // reference — handing it a freshly built list on each call would rebuild
+        // on every refresh, which destroys the button being pressed and brings
+        // back the fast-clicking bug this rule exists to prevent.
+        return admin ? InServer : WithoutAdmin;
+    }
+
+    private static readonly IReadOnlyList<NavBarItem> WithoutAdmin =
+        [.. InServer.Where(i => i.Key != "admin")];
+
     /// <summary>Pages that mean the shell is inside a server.</summary>
     public static bool IsInServer(Type? page) =>
-        page == typeof(ServerPage) || page == typeof(ChatPage) || page == typeof(PaintPage);
+        page == typeof(ServerPage) || page == typeof(ChatPage) || page == typeof(PaintPage)
+        || page == typeof(AdminPage);
 }

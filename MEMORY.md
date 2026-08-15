@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-15 — F0 to F10 done, post-F10 feature round in progress
+Last updated: 2026-08-15 — F0 to F10 and the post-F10 round done; in-client admin panel in progress
 
 ---
 
@@ -203,7 +203,146 @@ Eight things asked for after F10, before the installer. Done so far:
 - **The settings overhaul**: input and output device pick, microphone level and a
   live meter, and global key bindings.
 
-All eight of the post-F10 items are done. Remaining phase: F11 installer.
+All eight of the post-F10 items are done.
+
+---
+
+## IN PROGRESS: the in-client admin panel
+
+Asked for **before** F11. The point is that a server's admin should never have to
+SSH in and open the CLI panel for everyday work — the common jobs move into the
+client.
+
+**Entry point:** in a server, an admin sees an extra `Admin panel` entry behind
+the bar's More menu; choosing it slides to a new page.
+
+### The five areas
+
+1. **Users** — list everyone with their roles; grant and revoke roles, kick, ban,
+   mute.
+2. **Bans** — the active sanctions list, with unban.
+3. **Roles** — create, edit, delete; priority and permissions; **plus a visual
+   tag designer** (below).
+4. **Rooms** — create, rename, delete; password, capacity, and the minimum role
+   needed to join.
+5. **Bots** — create and delete bots, and **playlists** (below).
+
+### What the protocol already supports — no backend change needed
+
+`admin.kick` · `admin.ban` · `admin.unban` · `admin.mute` · `admin.unmute` ·
+`admin.move` · `admin.sanctions` · `admin.role.list/create/update/delete/grant/revoke`
+· `room.create/update/delete` (name, password, capacity, `required_role_id`) ·
+`bot.list/control/move`.
+
+So areas 1–4 and bot *control* can be built against the current backend.
+
+**DONE: areas 1–4.** `AdminPage` with Users / Bans / Roles / Rooms tabs, verified
+against the live server as a real administrator: the user list shows role tags,
+Roles lists both roles with their permissions (Delete correctly absent on the
+default role), Rooms lists all five with Edit and Delete. `RoleDialog` and
+`RoomDialog` cover create and edit.
+
+**DONE: the `tag_style` column** — migration `0009_role_tag_style`, threaded
+through storage, `access.RoleSpec`, `protocol.Role`/`RoleSpec` and the gateway.
+The server stores and echoes it and never looks inside, so new visual options
+need no further protocol change. All 224 backend tests still pass.
+
+**DONE: the tag designer and the tag renderer.** Verified in the running client:
+the New role dialog shows a live preview, nine ready-made presets drawn as real
+tags, two colour rows, and dropdowns for fill, shape, animation and icon. Tags
+render under usernames in the room grid and in the admin panel's user list.
+
+- `RoleTagStyle` is the JSON stored in `tag_style`. Unknown values fall back
+  rather than throw, so a client meeting a style written by a newer one shows a
+  plain tag instead of failing.
+- Fills: Solid, Gradient, Sunset, Stripes, Glass, Outline, Metal. **Stripes are a
+  gradient with hard stops** — two stops at the same offset make a band instead
+  of a fade, which is how a gradient brush can draw bars at all.
+- Animations: Pulse, Shimmer, Glow, Rainbow, Float. Every one animates opacity, a
+  transform or a brush colour — never a layout property — so a room full of
+  animated tags costs nothing to lay out.
+- Rainbow steps around the **hue circle** in six key frames rather than tweening
+  two colours, or it would slide through mud instead of through a rainbow.
+- The **default role is not drawn** under names: everybody has it, so it carries
+  no information and would be noise under every single person.
+- `color` is kept in step with the tag's main colour, so anything that only knows
+  the old field still shows the right hue.
+
+**KNOWN COSMETIC BUG, not yet fixed:** a `ContentDialog`'s primary button (Save)
+stays Windows blue instead of the theme accent. Three fixes were tried and none
+worked: `PrimaryButtonStyle = TcAccentButtonStyle`, declaring the stock accent
+brushes in `Palette.xaml`, and injecting them into the dialog's own
+`Resources` (`Dialogs.Themed`). The dialog is hosted in its own popup root and
+appears to resolve the accent from the built-in theme dictionaries regardless.
+Everything else in the dialog is themed correctly. Next thing to try: retemplate
+the button or drop `DefaultButton` and put a normal themed button in the content.
+
+**DONE: bot lifecycle over the wire.** `bot.create` / `bot.update` /
+`bot.delete` plus the `bot.removed` event, behind a new `manage_bots` permission
+(bit 65536, migration 0010) that is deliberately separate from `control_bots`.
+229 backend tests green. Things the client has to know:
+
+- **No folder travels on the wire.** A client-created bot is given
+  `<bots.dir>/<bot id>` on the server and its music arrives by upload; a bot
+  created from the CLI panel keeps the operator's path. Do not add a folder box
+  to the Bots tab — the server refuses to take one.
+- A create arrives as an ordinary `bot.state`, so an id the client has never seen
+  means "add it", not "ignore it". A delete arrives as `bot.removed`.
+- New error codes: `bot_name_taken`, `bot_limit_reached` (the cap is 64).
+- Disabling a bot stops it server-side, so the reply already carries the new
+  state — do not assume the bot keeps playing.
+
+**NEXT: bots.**
+1. ~~Bot lifecycle over the wire~~ — done, see above.
+2. Playlists: named playlists per bot, upload tracks into a chosen one, pick
+   which plays. Reuse the "permission over the socket, bytes over HTTP" ticket
+   pattern rather than inventing a second upload path.
+3. The Bots tab in the admin panel.
+
+### What needs backend work
+
+- **Role tag styling.** `Role` today has only `color`. The ask is a designed tag
+  shown under a user's name: foreground, background, pattern and animation, with
+  a live preview while designing and a genuinely varied set of choices — not a
+  handful of combinations. Needs new fields on the role (a `tag_style` blob is
+  the natural shape), a migration, and the client-side renderer.
+- **Bot create and delete over the wire.** Currently panel-only; the protocol has
+  control and move but no lifecycle.
+- **Playlists.** Today a music bot points at one folder. The ask: named playlists
+  per bot, upload tracks into a chosen playlist from the client, and pick which
+  playlist plays. Upload should reuse the existing "permission over the socket,
+  bytes over HTTP" ticket pattern rather than inventing a second one.
+
+### Getting an administrator to test with
+
+There is no way to grant the first role from the client — by design. Use the CLI
+panel: `docker compose -f deploy/docker-compose.dev.yml exec backend tamizchat`,
+then **7 → 5**, pick the role, pick the user. It can be driven non-interactively
+by piping the answers: `printf '7
+5
+1
+3
+
+0
+0
+' | docker compose ... exec -T backend tamizchat`.
+
+**A role grant needs the server restarted to take effect**, not just the client
+reconnecting. The panel says "the user must reconnect" and that is not enough —
+the running server's in-memory access manager kept the old permissions until
+`docker compose restart backend`. Worth knowing before hunting a client bug that
+is not there; it cost a round of debugging.
+
+### Settled while planning this
+
+- **Per-user volume is listener-side and stays that way.** Everyone can set
+  anyone's volume for themselves; nobody, admin included, can change how loud
+  someone is for other people. An admin can only mute and unmute. The client
+  already does exactly this — `UserVolumes` lives in local settings and is applied
+  in the local mixer, and nothing is sent to the server. **Do not add a
+  server-side volume.**
+
+Remaining phase after this: F11 installer.
 
 ### Moderation
 
@@ -294,8 +433,18 @@ Easy to misread as the room leaking into the list.
   it is the right rule.
 - Overlays are created lazily and kept, but **closed on exit** — they are real
   top-level windows and would otherwise keep the process alive invisibly.
-- **A screenshot script that matches on the process name will grab an overlay**
-  rather than the main window. Capture the whole desktop and crop instead.
+- **A screenshot or click script that matches on the process will grab an
+  overlay**, not the main window: the overlays are top-level windows of the same
+  process, and Windows even reports one of them as the process's `MainWindow`.
+  Enumerate windows and match the title **exactly `"TamizChat"`**;
+  `scratchpad/clickmain.ps1` does this. Two separate debugging detours came from
+  clicking the wrong window.
+- **The app dies when the shell that launched it finishes.** Launch, click and
+  screenshot all have to happen inside *one* tool call. This looked like the app
+  crashing at random for most of a session.
+- **Never filter a build to `error CS`.** A file-lock copy failure is `MSB3021`,
+  so the build "passes" while the exe stays stale — which then looks like the
+  code change having no effect. Stop the app first and grep for `error`.
 
 ### Opening the Settings page used to wipe your settings
 
@@ -309,6 +458,16 @@ that page has to go above the flag too.
 `Load()` runs once at startup and `SettingsStore.Current` stays live in memory;
 pages are not cached, so navigating away and back rebuilds the page against
 current values. That part was always sound — the bug was the save, not the load.
+
+### Escapes get eaten too, not just glyphs
+
+Writing `""` into a source file **from a shell tool call** does not work:
+the escape is collapsed before Python sees it, and a normal Python string literal
+then turns it into the character itself — which is the very thing that gets
+stripped later. `re.sub` makes it worse by processing escapes in the replacement
+string as well. Build the backslash from `chr(92)` and concatenate, then check
+with `grep | cat -v` that the file really contains `` and not the glyph.
+This cost three attempts on one icon list.
 
 ### Glyphs get stripped, again
 

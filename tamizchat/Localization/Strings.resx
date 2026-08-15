@@ -529,4 +529,217 @@
   <data name="Key.Clear" xml:space="preserve">
     <value>Clear</value>
   </data>
+  <data name="Nav.AdminPanel" xml:space="preserve">
+    <value>Admin panel</value>
+  </data>
+  <data name="Admin.Title" xml:space="preserve">
+    <value>Admin panel</value>
+  </data>
+  <data name="Admin.Subtitle" xml:space="preserve">
+    <value>Run the server from here instead of the command line.</value>
+  </data>
+  <data name="Admin.Users" xml:space="preserve">
+    <value>Users</value>
+  </data>
+  <data name="Admin.Bans" xml:space="preserve">
+    <value>Bans</value>
+  </data>
+  <data name="Admin.Roles" xml:space="preserve">
+    <value>Roles</value>
+  </data>
+  <data name="Admin.Rooms" xml:space="preserve">
+    <value>Rooms</value>
+  </data>
+  <data name="Admin.GrantRole" xml:space="preserve">
+    <value>Grant role</value>
+  </data>
+  <data name="Admin.RevokeRole" xml:space="preserve">
+    <value>Remove {0}</value>
+  </data>
+  <data name="Admin.Mute" xml:space="preserve">
+    <value>Mute</value>
+  </data>
+  <data name="Admin.Unmute" xml:space="preserve">
+    <value>Unmute</value>
+  </data>
+  <data name="Admin.Kick" xml:space="preserve">
+    <value>Kick</value>
+  </data>
+  <data name="Admin.Ban" xml:space="preserve">
+    <value>Ban</value>
+  </data>
+  <data name="Admin.Unban" xml:space="preserve">
+    <value>Unban</value>
+  </data>
+  <data name="Admin.NoUsers" xml:space="preserve">
+    <value>Nobody is online.</value>
+  </data>
+  <data name="Admin.NoBans" xml:space="preserve">
+    <value>Nobody is banned or muted.</value>
+  </data>
+  <data name="Admin.Permanent" xml:space="preserve">
+    <value>Permanent</value>
+  </data>
+  <data name="Admin.Until" xml:space="preserve">
+    <value>Until {0}</value>
+  </data>
+  <data name="Admin.NewRole" xml:space="preserve">
+    <value>New role</value>
+  </data>
+  <data name="Admin.EditRole" xml:space="preserve">
+    <value>Edit role</value>
+  </data>
+  <data name="Admin.RoleName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Admin.RoleColour" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="Admin.RolePriority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="Admin.Priority" xml:space="preserve">
+    <value>Priority {0}</value>
+  </data>
+  <data name="Admin.Permissions" xml:space="preserve">
+    <value>Permissions</value>
+  </data>
+  <data name="Admin.NoPermissions" xml:space="preserve">
+    <value>No permissions</value>
+  </data>
+  <data name="Admin.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Admin.Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Admin.Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Admin.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Admin.NewRoom" xml:space="preserve">
+    <value>New room</value>
+  </data>
+  <data name="Admin.EditRoom" xml:space="preserve">
+    <value>Edit room</value>
+  </data>
+  <data name="Admin.RoomName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Admin.RoomPassword" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Admin.ChangePassword" xml:space="preserve">
+    <value>Change the password</value>
+  </data>
+  <data name="Admin.RoomCapacity" xml:space="preserve">
+    <value>Capacity (0 for the default)</value>
+  </data>
+  <data name="Admin.RequiredRole" xml:space="preserve">
+    <value>Role needed to join</value>
+  </data>
+  <data name="Admin.AnyRole" xml:space="preserve">
+    <value>Anyone</value>
+  </data>
+  <data name="Admin.Capacity" xml:space="preserve">
+    <value>Capacity {0}</value>
+  </data>
+  <data name="Admin.Default" xml:space="preserve">
+    <value>default</value>
+  </data>
+  <data name="Admin.HasPassword" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Admin.NoPassword" xml:space="preserve">
+    <value>No password</value>
+  </data>
+  <data name="Admin.Requires" xml:space="preserve">
+    <value>Needs {0}</value>
+  </data>
+  <data name="Tag.Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Tag.Presets" xml:space="preserve">
+    <value>Ready-made</value>
+  </data>
+  <data name="Tag.Colour" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="Tag.SecondColour" xml:space="preserve">
+    <value>Second colour</value>
+  </data>
+  <data name="Tag.Pattern" xml:space="preserve">
+    <value>Fill</value>
+  </data>
+  <data name="Tag.Shape" xml:space="preserve">
+    <value>Shape</value>
+  </data>
+  <data name="Tag.Animation" xml:space="preserve">
+    <value>Animation</value>
+  </data>
+  <data name="Tag.Icon" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="Tag.Bold" xml:space="preserve">
+    <value>Bold text</value>
+  </data>
+  <data name="Tag.SampleName" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="Tag.TagPattern.Solid" xml:space="preserve">
+    <value>Solid</value>
+  </data>
+  <data name="Tag.TagPattern.Gradient" xml:space="preserve">
+    <value>Gradient</value>
+  </data>
+  <data name="Tag.TagPattern.Sunset" xml:space="preserve">
+    <value>Sunset</value>
+  </data>
+  <data name="Tag.TagPattern.Stripes" xml:space="preserve">
+    <value>Stripes</value>
+  </data>
+  <data name="Tag.TagPattern.Glass" xml:space="preserve">
+    <value>Glass</value>
+  </data>
+  <data name="Tag.TagPattern.Outline" xml:space="preserve">
+    <value>Outline</value>
+  </data>
+  <data name="Tag.TagPattern.Metal" xml:space="preserve">
+    <value>Metal</value>
+  </data>
+  <data name="Tag.TagShape.Pill" xml:space="preserve">
+    <value>Pill</value>
+  </data>
+  <data name="Tag.TagShape.Rounded" xml:space="preserve">
+    <value>Rounded</value>
+  </data>
+  <data name="Tag.TagShape.Square" xml:space="preserve">
+    <value>Square</value>
+  </data>
+  <data name="Tag.TagShape.Cut" xml:space="preserve">
+    <value>Cut</value>
+  </data>
+  <data name="Tag.TagAnimation.None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Tag.TagAnimation.Pulse" xml:space="preserve">
+    <value>Pulse</value>
+  </data>
+  <data name="Tag.TagAnimation.Shimmer" xml:space="preserve">
+    <value>Shimmer</value>
+  </data>
+  <data name="Tag.TagAnimation.Glow" xml:space="preserve">
+    <value>Glow</value>
+  </data>
+  <data name="Tag.TagAnimation.Rainbow" xml:space="preserve">
+    <value>Rainbow</value>
+  </data>
+  <data name="Tag.TagAnimation.Float" xml:space="preserve">
+    <value>Float</value>
+  </data>
+  <data name="Admin.TagDesign" xml:space="preserve">
+    <value>Tag design</value>
+  </data>
 </root>

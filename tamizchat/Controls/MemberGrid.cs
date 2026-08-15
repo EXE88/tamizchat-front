@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
+using TamizChat.Services;
 using Windows.Graphics.Imaging;
 
 namespace TamizChat.Controls;
@@ -136,6 +137,7 @@ internal sealed class MemberCell : Grid
     private readonly AvatarView _avatar;
     private readonly TextBlock _name;
     private readonly StackPanel _stack;
+    private readonly StackPanel _tags;
     private readonly Image _video;
     private readonly SoftwareBitmapSource _videoSource = new();
     private User _member;
@@ -171,8 +173,16 @@ internal sealed class MemberCell : Grid
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
+        _tags = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
         _stack.Children.Add(_avatar);
         _stack.Children.Add(_name);
+        _stack.Children.Add(_tags);
 
         // Sits behind the avatar stack and takes over when video arrives. Uniform
         // keeps the aspect ratio: a stretched face and a stretched screen are
@@ -200,6 +210,33 @@ internal sealed class MemberCell : Grid
         _member = member;
         _name.Text = member.Username;
         _avatar.SetMuted(member.Muted);
+        RenderTags(member);
+    }
+
+    /// <summary>
+    /// The person's roles, as designed tags under their name.
+    ///
+    /// Only roles the server actually told us about are drawn: an id with no
+    /// matching role means the role list has not arrived yet or the role was
+    /// deleted, and inventing a grey box for it would be worse than nothing.
+    /// The default role is skipped — everybody has it, so it carries no
+    /// information and would just be noise under every single name.
+    /// </summary>
+    private void RenderTags(User member)
+    {
+        _tags.Children.Clear();
+
+        foreach (var roleId in member.Roles)
+        {
+            var role = ServerSession.Instance.Roles.FirstOrDefault(r => r.Id == roleId);
+
+            if (role is null || role.IsDefault)
+            {
+                continue;
+            }
+
+            _tags.Children.Add(new RoleTag(role));
+        }
     }
 
     public void SetSpeaking(bool speaking) => _avatar.IsSpeaking = speaking;

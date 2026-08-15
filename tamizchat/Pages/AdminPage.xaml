@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="TamizChat.Pages.AdminPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="40,20,40,120">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock
+                x:Name="Title"
+                FontSize="30"
+                FontWeight="SemiBold"
+                Foreground="{StaticResource TcTextPrimaryBrush}"
+                Text="Admin panel" />
+            <TextBlock
+                x:Name="Subtitle"
+                FontSize="13"
+                Foreground="{StaticResource TcTextSecondaryBrush}"
+                Text="Run the server from here instead of the command line." />
+        </StackPanel>
+
+        <!--
+            A row of tabs rather than a NavigationView: there are only five, they
+            never nest, and a full navigation pane inside a page that is itself
+            reached from the bottom bar would be two navigation systems arguing.
+        -->
+        <StackPanel
+            x:Name="Tabs"
+            Grid.Row="1"
+            Margin="0,16,0,12"
+            Orientation="Horizontal"
+            Spacing="8" />
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="Body" Spacing="10" />
+        </ScrollViewer>
+
+        <TextBlock
+            x:Name="Status"
+            Grid.Row="2"
+            VerticalAlignment="Bottom"
+            FontSize="12"
+            Foreground="{StaticResource TcDangerBrush}"
+            Visibility="Collapsed" />
+    </Grid>
+</Page>

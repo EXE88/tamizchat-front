@@ -568,6 +568,15 @@ public sealed class Role
     public string Color { get; set; } = "";
 
     /// <summary>
+    /// How the client draws this role's tag, as opaque JSON.
+    ///
+    /// The server stores and echoes it without interpreting it, so a new visual
+    /// option is a client change and nothing else.
+    /// </summary>
+    [JsonPropertyName("tag_style")]
+    public string TagStyle { get; set; } = "";
+
+    /// <summary>
     /// Lower numbers act on higher ones, never the reverse.
     ///
     /// The server enforces this and refuses anything that breaks it; the client
@@ -638,4 +647,187 @@ public sealed class RolesChanged
 
     [JsonPropertyName("permissions")]
     public List<string> Permissions { get; set; } = [];
+}
+
+/// <summary>`admin.role.create`, and `admin.role.update` with the id filled in.</summary>
+public sealed class RoleSpec
+{
+    /// <summary>Empty when creating.</summary>
+    [JsonPropertyName("role_id")]
+    public string RoleId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "";
+
+    [JsonPropertyName("tag_style")]
+    public string TagStyle { get; set; } = "";
+
+    [JsonPropertyName("priority")]
+    public int Priority { get; set; }
+
+    [JsonPropertyName("permissions")]
+    public List<string> Permissions { get; set; } = [];
+}
+
+/// <summary>`admin.role.delete`.</summary>
+public sealed class RoleDelete
+{
+    [JsonPropertyName("role_id")]
+    public string RoleId { get; set; } = "";
+}
+
+/// <summary>One active ban or mute.</summary>
+public sealed class Sanction
+{
+    [JsonPropertyName("client_uuid")]
+    public string ClientUuid { get; set; } = "";
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = "";
+
+    /// <summary>`ban` or `mute`.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "";
+
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
+
+    [JsonPropertyName("by_username")]
+    public string ByUsername { get; set; } = "";
+
+    /// <summary>Unix seconds; zero means it never expires.</summary>
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+}
+
+/// <summary>The reply to `admin.sanctions`.</summary>
+public sealed class SanctionList
+{
+    [JsonPropertyName("sanctions")]
+    public List<Sanction> Sanctions { get; set; } = [];
+}
+
+/// <summary>`room.create`.</summary>
+public sealed class RoomCreate
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("password")]
+    public string Password { get; set; } = "";
+
+    /// <summary>Zero means the server's default.</summary>
+    [JsonPropertyName("capacity")]
+    public int Capacity { get; set; }
+
+    [JsonPropertyName("required_role_id")]
+    public string RequiredRoleId { get; set; } = "";
+}
+
+/// <summary>
+/// `room.update`. Only the fields sent are changed, so everything is nullable —
+/// a room with no password and a room whose password is simply not being touched
+/// have to be distinguishable.
+/// </summary>
+public sealed class RoomUpdate
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("password")]
+    public string? Password { get; set; }
+
+    [JsonPropertyName("capacity")]
+    public int? Capacity { get; set; }
+
+    [JsonPropertyName("required_role_id")]
+    public string? RequiredRoleId { get; set; }
+}
+
+/// <summary>`room.delete`.</summary>
+public sealed class RoomDelete
+{
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+}
+
+/// <summary>A bot and what it is currently doing.</summary>
+public sealed class Bot
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "music";
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
+
+    /// <summary>`idle`, `playing`, or `stopped`.</summary>
+    [JsonPropertyName("state")]
+    public string State { get; set; } = "";
+
+    [JsonPropertyName("track")]
+    public BotTrack? Track { get; set; }
+
+    [JsonPropertyName("track_count")]
+    public int TrackCount { get; set; }
+
+    [JsonPropertyName("loop")]
+    public bool Loop { get; set; }
+
+    [JsonPropertyName("shuffle")]
+    public bool Shuffle { get; set; }
+
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+}
+
+public sealed class BotTrack
+{
+    [JsonPropertyName("index")]
+    public int Index { get; set; }
+
+    [JsonPropertyName("title")]
+    public string Title { get; set; } = "";
+}
+
+/// <summary>The reply to `bot.list`.</summary>
+public sealed class BotListReply
+{
+    [JsonPropertyName("bots")]
+    public List<Bot> Bots { get; set; } = [];
+}
+
+/// <summary>`bot.control`.</summary>
+public sealed class BotControl
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    /// <summary>`play`, `stop`, `next`, `prev`, `loop`, `shuffle`.</summary>
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = "";
+
+    [JsonPropertyName("track_index")]
+    public int? TrackIndex { get; set; }
+}
+
+/// <summary>`bot.move`.</summary>
+public sealed class BotMove
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("room_id")]
+    public string RoomId { get; set; } = "";
 }

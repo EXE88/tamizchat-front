@@ -201,8 +201,20 @@ public sealed partial class MainWindow : Window
         EnterServer();
 
         var inServerPage = Environment.GetEnvironmentVariable("TAMIZCHAT_START_PAGE");
-        if (inServerPage is "chat" or "paint")
+        if (inServerPage is "chat" or "paint" or "admin")
         {
+            // EnterServer has just started a drill transition. Navigating again
+            // while it runs is swallowed, so the second move has to wait for the
+            // first to finish — this is only the scripted entry point, and a
+            // person clicking could never be this fast.
+            await Task.Delay(500);
+
+            File.WriteAllText(
+                Path.Combine(AppContext.BaseDirectory, "navlog.txt"),
+                $"page={inServerPage} selected={_selectedKey} " +
+                $"items={string.Join(",", ShellItems.InServer.Select(i => i.Key))} " +
+                $"perms={string.Join(",", ServerSession.Instance.Permissions)}");
+
             OnNavItemInvoked(null, ShellItems.InServer.First(i => i.Key == inServerPage));
         }
     }
@@ -467,7 +479,11 @@ public sealed partial class MainWindow : Window
     {
         var current = NavigationService.Instance.CurrentPageType;
         var inServer = ShellItems.IsInServer(current);
-        var items = inServer ? ShellItems.InServer : ShellItems.PreServer;
+        // Filtered by what this person can actually do, so the admin entry is
+        // absent for everybody else.
+        var items = inServer
+            ? ShellItems.InServerFor(ServerSession.Instance.Permissions)
+            : ShellItems.PreServer;
 
         // Keep the selection honest if we arrived by any route other than the bar.
         if (KeyForPage(items, current) is { } key && IndexOfKey(items, _selectedKey) < 0)

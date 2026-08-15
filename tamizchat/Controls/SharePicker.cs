@@ -58,7 +58,6 @@ public static class SharePicker
 
         var dialog = new ContentDialog
         {
-            XamlRoot = root,
             Title = Loc.Get("Share.Title"),
             Content = list,
             PrimaryButtonText = Loc.Get("Share.Share"),
@@ -68,11 +67,9 @@ public static class SharePicker
             // The stock primary button paints itself with the Windows system
             // accent and ignores the chosen theme entirely.
             PrimaryButtonStyle = (Style)Application.Current.Resources["TcAccentButtonStyle"],
-
-            // Without this the dialog is drawn with the system theme rather than
-            // the app's, which on a dark palette means a white box.
-            RequestedTheme = ((FrameworkElement)root.Content).RequestedTheme,
         };
+
+        dialog.Themed(root);
 
         var result = await dialog.ShowAsync();
         if (result != ContentDialogResult.Primary)

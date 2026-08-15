@@ -44,6 +44,17 @@ public static class MessageTypes
     public const string RoleList = "admin.role.list";
     public const string RoleGrant = "admin.role.grant";
     public const string RoleRevoke = "admin.role.revoke";
+    public const string RoleCreate = "admin.role.create";
+    public const string RoleUpdate = "admin.role.update";
+    public const string RoleDelete = "admin.role.delete";
+
+    public const string RoomCreate = "room.create";
+    public const string RoomUpdate = "room.update";
+    public const string RoomDelete = "room.delete";
+
+    public const string BotList = "bot.list";
+    public const string BotControl = "bot.control";
+    public const string BotMove = "bot.move";
 
     /// <summary>Sent only to the user whose roles changed.</summary>
     public const string UserRolesChanged = "user.roles_changed";

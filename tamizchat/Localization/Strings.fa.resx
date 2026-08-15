@@ -529,4 +529,217 @@
   <data name="Key.Clear" xml:space="preserve">
     <value>پاک کردن</value>
   </data>
+  <data name="Nav.AdminPanel" xml:space="preserve">
+    <value>پنل مدیریت</value>
+  </data>
+  <data name="Admin.Title" xml:space="preserve">
+    <value>پنل مدیریت</value>
+  </data>
+  <data name="Admin.Subtitle" xml:space="preserve">
+    <value>سرور را از اینجا بگردانید، نه از خط فرمان.</value>
+  </data>
+  <data name="Admin.Users" xml:space="preserve">
+    <value>کاربران</value>
+  </data>
+  <data name="Admin.Bans" xml:space="preserve">
+    <value>مسدودها</value>
+  </data>
+  <data name="Admin.Roles" xml:space="preserve">
+    <value>نقش‌ها</value>
+  </data>
+  <data name="Admin.Rooms" xml:space="preserve">
+    <value>اتاق‌ها</value>
+  </data>
+  <data name="Admin.GrantRole" xml:space="preserve">
+    <value>دادن نقش</value>
+  </data>
+  <data name="Admin.RevokeRole" xml:space="preserve">
+    <value>حذف {0}</value>
+  </data>
+  <data name="Admin.Mute" xml:space="preserve">
+    <value>بی‌صدا</value>
+  </data>
+  <data name="Admin.Unmute" xml:space="preserve">
+    <value>باصدا</value>
+  </data>
+  <data name="Admin.Kick" xml:space="preserve">
+    <value>اخراج</value>
+  </data>
+  <data name="Admin.Ban" xml:space="preserve">
+    <value>مسدود کردن</value>
+  </data>
+  <data name="Admin.Unban" xml:space="preserve">
+    <value>رفع مسدودی</value>
+  </data>
+  <data name="Admin.NoUsers" xml:space="preserve">
+    <value>کسی آنلاین نیست.</value>
+  </data>
+  <data name="Admin.NoBans" xml:space="preserve">
+    <value>کسی مسدود یا بی‌صدا نیست.</value>
+  </data>
+  <data name="Admin.Permanent" xml:space="preserve">
+    <value>دائمی</value>
+  </data>
+  <data name="Admin.Until" xml:space="preserve">
+    <value>تا {0}</value>
+  </data>
+  <data name="Admin.NewRole" xml:space="preserve">
+    <value>نقش تازه</value>
+  </data>
+  <data name="Admin.EditRole" xml:space="preserve">
+    <value>ویرایش نقش</value>
+  </data>
+  <data name="Admin.RoleName" xml:space="preserve">
+    <value>نام</value>
+  </data>
+  <data name="Admin.RoleColour" xml:space="preserve">
+    <value>رنگ</value>
+  </data>
+  <data name="Admin.RolePriority" xml:space="preserve">
+    <value>اولویت</value>
+  </data>
+  <data name="Admin.Priority" xml:space="preserve">
+    <value>اولویت {0}</value>
+  </data>
+  <data name="Admin.Permissions" xml:space="preserve">
+    <value>دسترسی‌ها</value>
+  </data>
+  <data name="Admin.NoPermissions" xml:space="preserve">
+    <value>بدون دسترسی</value>
+  </data>
+  <data name="Admin.Edit" xml:space="preserve">
+    <value>ویرایش</value>
+  </data>
+  <data name="Admin.Delete" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Admin.Save" xml:space="preserve">
+    <value>ذخیره</value>
+  </data>
+  <data name="Admin.Cancel" xml:space="preserve">
+    <value>انصراف</value>
+  </data>
+  <data name="Admin.NewRoom" xml:space="preserve">
+    <value>اتاق تازه</value>
+  </data>
+  <data name="Admin.EditRoom" xml:space="preserve">
+    <value>ویرایش اتاق</value>
+  </data>
+  <data name="Admin.RoomName" xml:space="preserve">
+    <value>نام</value>
+  </data>
+  <data name="Admin.RoomPassword" xml:space="preserve">
+    <value>رمز</value>
+  </data>
+  <data name="Admin.ChangePassword" xml:space="preserve">
+    <value>تغییر رمز</value>
+  </data>
+  <data name="Admin.RoomCapacity" xml:space="preserve">
+    <value>ظرفیت (۰ برای پیش‌فرض)</value>
+  </data>
+  <data name="Admin.RequiredRole" xml:space="preserve">
+    <value>نقش لازم برای ورود</value>
+  </data>
+  <data name="Admin.AnyRole" xml:space="preserve">
+    <value>همه</value>
+  </data>
+  <data name="Admin.Capacity" xml:space="preserve">
+    <value>ظرفیت {0}</value>
+  </data>
+  <data name="Admin.Default" xml:space="preserve">
+    <value>پیش‌فرض</value>
+  </data>
+  <data name="Admin.HasPassword" xml:space="preserve">
+    <value>رمزدار</value>
+  </data>
+  <data name="Admin.NoPassword" xml:space="preserve">
+    <value>بدون رمز</value>
+  </data>
+  <data name="Admin.Requires" xml:space="preserve">
+    <value>نیازمند {0}</value>
+  </data>
+  <data name="Tag.Preview" xml:space="preserve">
+    <value>پیش‌نمایش</value>
+  </data>
+  <data name="Tag.Presets" xml:space="preserve">
+    <value>آماده</value>
+  </data>
+  <data name="Tag.Colour" xml:space="preserve">
+    <value>رنگ</value>
+  </data>
+  <data name="Tag.SecondColour" xml:space="preserve">
+    <value>رنگ دوم</value>
+  </data>
+  <data name="Tag.Pattern" xml:space="preserve">
+    <value>پرکننده</value>
+  </data>
+  <data name="Tag.Shape" xml:space="preserve">
+    <value>شکل</value>
+  </data>
+  <data name="Tag.Animation" xml:space="preserve">
+    <value>انیمیشن</value>
+  </data>
+  <data name="Tag.Icon" xml:space="preserve">
+    <value>آیکون</value>
+  </data>
+  <data name="Tag.Bold" xml:space="preserve">
+    <value>متن ضخیم</value>
+  </data>
+  <data name="Tag.SampleName" xml:space="preserve">
+    <value>نقش</value>
+  </data>
+  <data name="Tag.TagPattern.Solid" xml:space="preserve">
+    <value>یک‌دست</value>
+  </data>
+  <data name="Tag.TagPattern.Gradient" xml:space="preserve">
+    <value>گرادیان</value>
+  </data>
+  <data name="Tag.TagPattern.Sunset" xml:space="preserve">
+    <value>غروب</value>
+  </data>
+  <data name="Tag.TagPattern.Stripes" xml:space="preserve">
+    <value>راه‌راه</value>
+  </data>
+  <data name="Tag.TagPattern.Glass" xml:space="preserve">
+    <value>شیشه‌ای</value>
+  </data>
+  <data name="Tag.TagPattern.Outline" xml:space="preserve">
+    <value>خط دور</value>
+  </data>
+  <data name="Tag.TagPattern.Metal" xml:space="preserve">
+    <value>فلزی</value>
+  </data>
+  <data name="Tag.TagShape.Pill" xml:space="preserve">
+    <value>قرصی</value>
+  </data>
+  <data name="Tag.TagShape.Rounded" xml:space="preserve">
+    <value>گرد</value>
+  </data>
+  <data name="Tag.TagShape.Square" xml:space="preserve">
+    <value>مربع</value>
+  </data>
+  <data name="Tag.TagShape.Cut" xml:space="preserve">
+    <value>برش‌خورده</value>
+  </data>
+  <data name="Tag.TagAnimation.None" xml:space="preserve">
+    <value>بدون</value>
+  </data>
+  <data name="Tag.TagAnimation.Pulse" xml:space="preserve">
+    <value>تپش</value>
+  </data>
+  <data name="Tag.TagAnimation.Shimmer" xml:space="preserve">
+    <value>درخشش</value>
+  </data>
+  <data name="Tag.TagAnimation.Glow" xml:space="preserve">
+    <value>هاله</value>
+  </data>
+  <data name="Tag.TagAnimation.Rainbow" xml:space="preserve">
+    <value>رنگین‌کمان</value>
+  </data>
+  <data name="Tag.TagAnimation.Float" xml:space="preserve">
+    <value>شناور</value>
+  </data>
+  <data name="Admin.TagDesign" xml:space="preserve">
+    <value>طراحی تگ</value>
+  </data>
 </root>

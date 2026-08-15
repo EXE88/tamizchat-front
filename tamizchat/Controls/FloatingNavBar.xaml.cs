@@ -188,7 +188,14 @@ public sealed partial class FloatingNavBar : UserControl
 
         if (primaryCount < _items.Count)
         {
-            ItemsHost.Children.Add(CreateOverflowButton(_items.Skip(primaryCount).ToList()));
+            var overflow = CreateOverflowButton(_items.Skip(primaryCount).ToList());
+
+            // Kept under a reserved key so selection can find it. When the page
+            // you are on lives behind More, that is what should look selected —
+            // otherwise the bar shows nothing selected at all and the pill has
+            // nowhere sensible to sit.
+            _buttons[OverflowKey] = overflow;
+            ItemsHost.Children.Add(overflow);
         }
 
         RefreshVisuals();
@@ -317,6 +324,7 @@ public sealed partial class FloatingNavBar : UserControl
             var glyph = item.Glyph;
             var label = item.Label;
             var foreground = Brush("TcTextSecondaryBrush");
+            var selectionKey = SelectionTarget;
 
             // An override wins over everything below: while it is in place the
             // item is standing in for something else entirely.
@@ -329,7 +337,7 @@ public sealed partial class FloatingNavBar : UserControl
             switch (item.Kind)
             {
                 case NavItemKind.Navigate:
-                    foreground = item.Key == _selectedKey
+                    foreground = item.Key == selectionKey
                         ? Brush("TcOnAccentBrush")
                         : Brush("TcTextSecondaryBrush");
                     break;
@@ -356,13 +364,47 @@ public sealed partial class FloatingNavBar : UserControl
 
             Paint(button, glyph, label, foreground);
         }
+
+        // The More button is not one of `_items`, so it is repainted separately.
+        if (_buttons.TryGetValue(OverflowKey, out var overflowButton))
+        {
+            var selected = SelectionTarget == OverflowKey;
+            Paint(
+                overflowButton,
+                MoreGlyph,
+                Loc.Get("Nav.More"),
+                Brush(selected ? "TcOnAccentBrush" : "TcTextSecondaryBrush"));
+        }
     }
 
     /// <summary>Slides the selection pill onto the selected item.</summary>
+    /// <summary>The reserved key for the More button.</summary>
+    private const string OverflowKey = "__more";
+
+    /// <summary>
+    /// The horizontal ellipsis, as an escape.
+    ///
+    /// Written this way because icon glyphs live in Unicode's private use area
+    /// and are silently stripped when they pass through tooling — this exact
+    /// button has lost its icon twice already that way.
+    /// </summary>
+    private const string MoreGlyph = "";
+
+    /// <summary>
+    /// Which button should look selected: the selected item's own, or More when
+    /// that item is hidden behind it.
+    /// </summary>
+    private string? SelectionTarget =>
+        _selectedKey is not null && _buttons.ContainsKey(_selectedKey) ? _selectedKey
+        : _selectedKey is not null && _items.Any(i => i.Key == _selectedKey) && _buttons.ContainsKey(OverflowKey) ? OverflowKey
+        : null;
+
     private void MovePill(bool animate)
     {
-        if (_selectedKey is null
-            || !_buttons.TryGetValue(_selectedKey, out var target)
+        var key = SelectionTarget;
+
+        if (key is null
+            || !_buttons.TryGetValue(key, out var target)
             || target.ActualWidth <= 0)
         {
             SelectionPill.Opacity = 0;

@@ -441,6 +441,110 @@ public sealed class ServerSession
     }
 
     /// <summary>The whole board. The server never pushes this; it must be asked for.</summary>
+    // --- administration ---
+    //
+    // Every one of these is a *request*, never a send. The server re-checks the
+    // permission and the priority rule on each, and a refusal comes back as the
+    // reply — an admin acting on somebody above them has to be told, not
+    // silently ignored.
+
+    public async Task<IReadOnlyList<Sanction>> GetSanctionsAsync()
+    {
+        if (_client is null)
+        {
+            return [];
+        }
+
+        var reply = await _client.RequestAsync(MessageTypes.AdminSanctions).ConfigureAwait(true);
+        return TamizChatClient.Deserialize<SanctionList>(reply)?.Sanctions ?? [];
+    }
+
+    public Task UnbanAsync(string clientUuid) =>
+        RequireClient().RequestAsync(MessageTypes.AdminUnban, new AdminTarget { ClientUuid = clientUuid });
+
+    public async Task<Role?> CreateRoleAsync(RoleSpec spec)
+    {
+        var reply = await RequireClient().RequestAsync(MessageTypes.RoleCreate, spec).ConfigureAwait(true);
+        await RefreshRolesAsync().ConfigureAwait(true);
+        return TamizChatClient.Deserialize<Role>(reply);
+    }
+
+    public async Task<Role?> UpdateRoleAsync(RoleSpec spec)
+    {
+        var reply = await RequireClient().RequestAsync(MessageTypes.RoleUpdate, spec).ConfigureAwait(true);
+        await RefreshRolesAsync().ConfigureAwait(true);
+        return TamizChatClient.Deserialize<Role>(reply);
+    }
+
+    public async Task DeleteRoleAsync(string roleId)
+    {
+        await RequireClient().RequestAsync(MessageTypes.RoleDelete, new RoleDelete { RoleId = roleId }).ConfigureAwait(true);
+        await RefreshRolesAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Re-reads the role list.
+    ///
+    /// `admin.role.list` is open to everyone, because every client needs the
+    /// names and colours to render somebody's tag — not only administrators.
+    /// </summary>
+    public async Task RefreshRolesAsync()
+    {
+        if (_client is null)
+        {
+            return;
+        }
+
+        var reply = await _client.RequestAsync(MessageTypes.RoleList).ConfigureAwait(true);
+        var roles = TamizChatClient.Deserialize<List<Role>>(reply);
+        if (roles is not null)
+        {
+            Roles = roles;
+            Raise();
+        }
+    }
+
+    public async Task CreateRoomAsync(RoomCreate room)
+    {
+        await RequireClient().RequestAsync(MessageTypes.RoomCreate, room).ConfigureAwait(true);
+        await RefreshRoomsAsync().ConfigureAwait(true);
+    }
+
+    public async Task UpdateRoomAsync(RoomUpdate room)
+    {
+        await RequireClient().RequestAsync(MessageTypes.RoomUpdate, room).ConfigureAwait(true);
+        await RefreshRoomsAsync().ConfigureAwait(true);
+    }
+
+    public async Task DeleteRoomAsync(string roomId)
+    {
+        await RequireClient().RequestAsync(MessageTypes.RoomDelete, new RoomDelete { RoomId = roomId }).ConfigureAwait(true);
+        await RefreshRoomsAsync().ConfigureAwait(true);
+    }
+
+    public async Task<IReadOnlyList<Bot>> GetBotsAsync()
+    {
+        if (_client is null)
+        {
+            return [];
+        }
+
+        var reply = await _client.RequestAsync(MessageTypes.BotList).ConfigureAwait(true);
+        return TamizChatClient.Deserialize<BotListReply>(reply)?.Bots ?? [];
+    }
+
+    public Task ControlBotAsync(string botId, string action, int? trackIndex = null) =>
+        RequireClient().RequestAsync(
+            MessageTypes.BotControl,
+            new BotControl { BotId = botId, Action = action, TrackIndex = trackIndex });
+
+    public Task MoveBotAsync(string botId, string roomId) =>
+        RequireClient().RequestAsync(MessageTypes.BotMove, new BotMove { BotId = botId, RoomId = roomId });
+
+    /// <summary>Throws rather than silently doing nothing when there is no connection.</summary>
+    private TamizChatClient RequireClient() =>
+        _client ?? throw new InvalidOperationException("not connected to a server");
+
     public async Task<PaintState> GetBoardAsync()
     {
         if (_client is null)
