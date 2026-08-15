@@ -415,6 +415,29 @@ The Bots tab converts before uploading and says so — "Converting…" then
 "Uploading…" — because a three-minute track takes a few seconds and a silent
 pause would look like a hang.
 
+### Uploading a real track: what it costs, and the crash log
+
+Measured on a four-minute mp3 (4.8 MB), outside the app:
+
+| | |
+|---|---|
+| Conversion, as first written | 10.9 s, **12,194 progress reports** |
+| After throttling to whole percentages and Opus complexity 3 | **7.0 s, 100 reports** |
+| Upload of the converted file | instant on a local server |
+| Debug build vs Release | **no difference** — Concentus comes from a package, so it is optimised either way |
+
+Twelve thousand `IProgress` reports is twelve thousand posts to the interface
+thread for one file. That is almost certainly what turned a ten-second
+conversion into a window that looked hung, and running under the debugger makes
+every one of them worse. Complexity 3 rather than the default 10 is the other
+half: inaudible at 128 kbit/s over a voice chat, and a third off the time.
+
+**`Services/CrashLog.cs` now exists** because a WinUI app that hits an unhandled
+exception simply vanishes — no dialog, nothing in the window — and that is what
+happened during a long upload, leaving nothing to go on. It hooks the XAML
+handler, the AppDomain one and unobserved tasks, and appends to `crash.log` next
+to the executable. The upload path also writes anything it catches there.
+
 **NEXT: F11, the installer.**
 
 ### What needs backend work

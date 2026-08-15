@@ -1145,6 +1145,10 @@ public sealed partial class AdminPage : Page
         }
         catch (Exception ex)
         {
+            // Written down as well as shown: an upload that fails halfway
+            // through a conversion is exactly the case where the message on
+            // screen is not enough to work out what happened.
+            CrashLog.Write("upload", ex);
             Fail(ex);
         }
         finally

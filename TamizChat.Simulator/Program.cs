@@ -117,6 +117,88 @@ if (mode == "fx")
     return 0;
 }
 
+if (mode == "convert")
+{
+    // Times the client's own conversion, outside the app and the debugger, so
+    // "uploading a real track is slow" can be attributed to the right thing.
+    var input = args.Length > 1 ? args[1] : "";
+    if (!File.Exists(input))
+    {
+        Console.Error.WriteLine("usage: tamizsim convert <file>");
+        return 1;
+    }
+
+    var output = Path.Combine(Path.GetTempPath(), $"convert-{Guid.NewGuid():N}.ogg");
+    var reports = 0;
+    var started = DateTime.UtcNow;
+
+    await TamizChat.Audio.OpusFile.ConvertAsync(input, output,
+        new Progress<double>(_ => Interlocked.Increment(ref reports)));
+
+    var took = DateTime.UtcNow - started;
+    var size = new FileInfo(output).Length;
+    Console.WriteLine($"converted in {took.TotalSeconds:F1}s   " +
+                      $"{new FileInfo(input).Length / 1024} KB -> {size / 1024} KB   " +
+                      $"progress reports: {reports}");
+    File.Delete(output);
+    return 0;
+}
+
+if (mode == "uploadtest")
+{
+    // The whole client upload path for a real track — convert, then send —
+    // outside the app, so a crash there can be told apart from a crash in the
+    // interface around it.
+    var input = args.Length > 1 ? args[1] : "";
+    if (!File.Exists(input))
+    {
+        Console.Error.WriteLine("usage: tamizsim uploadtest <file>");
+        return 1;
+    }
+
+    var uploadUuid = StableUuid("BotAdmin");
+    await using var admin = new TamizChatClient();
+    var hello = await admin.ConnectAsync($"ws://{server}/ws", uploadUuid, "BotAdmin");
+    Console.WriteLine($"connected as {hello.You.Username}");
+
+    var uploadBot = TamizChatClient.Deserialize<Bot>(await admin.RequestAsync(
+        MessageTypes.BotCreate, new BotSpec { Name = $"Upload {DateTime.Now:HHmmss}" }))!;
+    var uploadList = TamizChatClient.Deserialize<BotPlaylist>(await admin.RequestAsync(
+        MessageTypes.BotPlaylistCreate,
+        new BotPlaylistSpec { BotId = uploadBot.Id, Name = "Set" }))!;
+
+    var converted = Path.Combine(Path.GetTempPath(), $"upload-{Guid.NewGuid():N}.ogg");
+    var convertStarted = DateTime.UtcNow;
+    await TamizChat.Audio.OpusFile.ConvertAsync(input, converted);
+    Console.WriteLine($"converted in {(DateTime.UtcNow - convertStarted).TotalSeconds:F1}s");
+
+    var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(await admin.RequestAsync(
+        MessageTypes.BotTrackUploadRequest,
+        new BotTrackUploadRequest
+        {
+            BotId = uploadBot.Id,
+            PlaylistId = uploadList.Id,
+            Name = Path.GetFileNameWithoutExtension(input) + ".ogg",
+            Size = new FileInfo(converted).Length,
+        }))!;
+
+    var sendStarted = DateTime.UtcNow;
+    using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) })
+    using (var body = new StreamContent(File.OpenRead(converted)))
+    using (var post = new HttpRequestMessage(HttpMethod.Post, $"http://{server}{ticket.Url}") { Content = body })
+    {
+        post.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
+        using var response = await http.SendAsync(post);
+        Console.WriteLine($"uploaded {new FileInfo(converted).Length / 1024} KB in " +
+                          $"{(DateTime.UtcNow - sendStarted).TotalSeconds:F1}s -> {(int)response.StatusCode}");
+    }
+
+    File.Delete(converted);
+    await admin.RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = uploadBot.Id });
+    Console.WriteLine("uploadtest OK");
+    return 0;
+}
+
 var httpUrl = $"http://{server}";
 var wsUrl = $"ws://{server}/ws";
 

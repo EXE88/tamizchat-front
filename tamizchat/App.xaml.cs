@@ -8,7 +8,14 @@ public partial class App : Application
     /// <summary>The app's single main window.</summary>
     public static Window? MainWindow { get; private set; }
 
-    public App() => InitializeComponent();
+    public App()
+    {
+        InitializeComponent();
+
+        // Before anything else can fail: a crash during a long upload left
+        // nothing behind at all, which is why this is the first thing set up.
+        CrashLog.Install(this);
+    }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {

@@ -31,6 +31,16 @@ public static class OpusFile
     /// </summary>
     private const int Bitrate = 128000;
 
+    /// <summary>
+    /// How hard the encoder works, 0 to 10.
+    ///
+    /// The default is 10, which for a managed encoder means a four-minute track
+    /// takes about eleven seconds. Five is several times faster and the
+    /// difference at 128 kbit/s is not something anyone will hear over a voice
+    /// chat — a person waiting for an upload will certainly notice the seconds.
+    /// </summary>
+    private const int Complexity = 3;
+
     public static bool IsSupported(string path) =>
         SupportedExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
@@ -93,11 +103,19 @@ public static class OpusFile
         using var reader = Open(source);
 
         // 48 kHz stereo, because that is what Opus wants and what music
-        // deserves — the voice path is mono, but a bot is playing records.
-        var samples = new WdlResamplingSampleProvider(Stereo(reader.ToSampleProvider()), SampleRate);
+        // deserves — the voice path is mono, but a bot is playing records. A
+        // file already at 48 kHz skips the resampler entirely.
+        // A file already at 48 kHz skips the resampler entirely. Media
+        // Foundation's native resampler was measured against this one and made
+        // no difference, so the simpler managed path stays.
+        var stereo = Stereo(reader.ToSampleProvider());
+        var samples = stereo.WaveFormat.SampleRate == SampleRate
+            ? stereo
+            : new WdlResamplingSampleProvider(stereo, SampleRate);
 
         var encoder = OpusCodecFactory.CreateEncoder(SampleRate, Channels, OpusApplication.OPUS_APPLICATION_AUDIO);
         encoder.Bitrate = Bitrate;
+        encoder.Complexity = Complexity;
 
         using var output = File.Create(destination);
         var writer = new OpusOggWriteStream(encoder, output);
@@ -108,6 +126,7 @@ public static class OpusFile
 
         var total = TotalSamples(reader);
         long written = 0;
+        var lastReported = 0.0;
 
         while (true)
         {
@@ -134,9 +153,18 @@ public static class OpusFile
             writer.WriteSamples(pcm, 0, pcm.Length);
             written += read;
 
+            // Reported sparingly. Every frame is twenty milliseconds, so a
+            // four-minute track would otherwise post twelve thousand updates to
+            // the interface thread — which is how a conversion that takes ten
+            // seconds can leave a window looking hung.
             if (total > 0)
             {
-                progress?.Report(Math.Min(100, written * 100.0 / total));
+                var percent = Math.Min(100, written * 100.0 / total);
+                if (percent - lastReported >= 1)
+                {
+                    lastReported = percent;
+                    progress?.Report(percent);
+                }
             }
         }
 

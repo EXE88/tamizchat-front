@@ -17,6 +17,7 @@ internal sealed class ProgressStreamContent : HttpContent
     private readonly Stream _source;
     private readonly long _length;
     private readonly IProgress<double>? _percent;
+    private double _lastReported;
 
     public ProgressStreamContent(Stream source, long length, IProgress<double>? percent)
     {
@@ -42,10 +43,17 @@ internal sealed class ProgressStreamContent : HttpContent
             sent += read;
 
             // A zero-length file would divide by zero, and reporting anything
-            // for one is meaningless anyway.
+            // for one is meaningless anyway. Whole percentages only: each report
+            // crosses to the interface thread, and nobody can see finer than
+            // that on a progress bar.
             if (_length > 0)
             {
-                _percent?.Report(Math.Min(100, sent * 100.0 / _length));
+                var percent = Math.Min(100, sent * 100.0 / _length);
+                if (percent - _lastReported >= 1)
+                {
+                    _lastReported = percent;
+                    _percent?.Report(percent);
+                }
             }
         }
     }
