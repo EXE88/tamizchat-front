@@ -1100,15 +1100,42 @@ public sealed partial class AdminPage : Page
 
         try
         {
+            // Converted files go to a temporary folder and are cleaned up after,
+            // so a music library never gets .opus copies scattered through it.
+            var scratch = Path.Combine(Path.GetTempPath(), "tamizchat-upload");
+            Directory.CreateDirectory(scratch);
+
             foreach (var file in files)
             {
                 var index = done + 1;
+                var progress = new Progress<double>(percent => UploadBar.Value = percent);
+
+                // A bot plays Opus, and the conversion belongs here: Windows
+                // already decodes mp3 and m4a, and this app already carries an
+                // Opus encoder for the microphone. The server never transcodes
+                // anything.
+                UploadLabel.Text = files.Count == 1
+                    ? Loc.Get("Admin.Converting", file.Name)
+                    : Loc.Get("Admin.ConvertingOf", file.Name, index, files.Count);
+
+                var converted = Path.Combine(scratch,
+                    Path.GetFileNameWithoutExtension(file.Name) + ".ogg");
+
+                await TamizChat.Audio.OpusFile.ConvertAsync(file.Path, converted, progress);
+
                 UploadLabel.Text = files.Count == 1
                     ? Loc.Get("Admin.Uploading", file.Name)
                     : Loc.Get("Admin.UploadingOf", file.Name, index, files.Count);
 
-                var progress = new Progress<double>(percent => UploadBar.Value = percent);
-                await ServerSession.Instance.UploadTrackAsync(botId, playlistId, file.Path, progress);
+                try
+                {
+                    await ServerSession.Instance.UploadTrackAsync(botId, playlistId, converted, progress);
+                }
+                finally
+                {
+                    File.Delete(converted);
+                }
+
                 done++;
             }
 
@@ -1129,11 +1156,10 @@ public sealed partial class AdminPage : Page
     }
 
     /// <summary>
-    /// What the server's scanner accepts. Filtering here as well means somebody
-    /// picking a .txt is told by the file picker rather than by a refusal.
+    /// What can be picked. Anything here is converted to Ogg/Opus on the way up,
+    /// because that is the one thing a bot can publish — see OpusFile.
     /// </summary>
-    private static readonly string[] AudioExtensions =
-        [".mp3", ".ogg", ".opus", ".flac", ".m4a", ".aac", ".wav", ".wma"];
+    private static readonly string[] AudioExtensions = TamizChat.Audio.OpusFile.SupportedExtensions;
 
     // --- shared bits ---
 

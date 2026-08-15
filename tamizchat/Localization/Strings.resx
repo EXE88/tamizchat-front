@@ -886,4 +886,10 @@
   <data name="Bot.MoveTo" xml:space="preserve">
     <value>Move to</value>
   </data>
+  <data name="Admin.Converting" xml:space="preserve">
+    <value>Converting {0}…</value>
+  </data>
+  <data name="Admin.ConvertingOf" xml:space="preserve">
+    <value>Converting {0} ({1} of {2})…</value>
+  </data>
 </root>

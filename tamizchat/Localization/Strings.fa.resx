@@ -886,4 +886,10 @@
   <data name="Bot.MoveTo" xml:space="preserve">
     <value>انتقال به</value>
   </data>
+  <data name="Admin.Converting" xml:space="preserve">
+    <value>در حال تبدیل {0}…</value>
+  </data>
+  <data name="Admin.ConvertingOf" xml:space="preserve">
+    <value>در حال تبدیل {0} ({1} از {2})…</value>
+  </data>
 </root>

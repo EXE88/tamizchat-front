@@ -399,6 +399,22 @@ That is what "the bot never joins" meant.
   move to, take out — gated by `control_bots`, like the member menu.
 - A room with a bot in it is not "empty" any more.
 
+### The music bot rewrite reached this side too
+
+The backend now publishes a bot's audio itself, and the one thing that costs the
+client is the format: WebRTC carries Opus, there is no pure-Go Opus encoder, so
+**tracks are converted here on the way up**.
+
+`TamizChat.Audio/OpusFile.cs` does it: Media Foundation decodes mp3/m4a/wma/wav,
+NVorbis handles Vorbis, everything is resampled to 48 kHz **stereo** (the voice
+path is mono; a bot is playing records), Concentus encodes Opus at 128 kbit/s
+and `Concentus.Oggfile` writes the Ogg. A file that is already Opus is copied
+rather than re-encoded.
+
+The Bots tab converts before uploading and says so — "Converting…" then
+"Uploading…" — because a three-minute track takes a few seconds and a silent
+pause would look like a hang.
+
 **NEXT: F11, the installer.**
 
 ### What needs backend work

@@ -190,6 +190,7 @@ if (mode is "talk" or "listen" or "video")
     await using var media = new MediaSession();
     var received = 0;
     var peakRms = 0.0;
+    var perIdentity = new Dictionary<string, double>();
 
     // `listen` plays what it hears out of the speakers, which is how you test
     // your own microphone: talk in the app and hear yourself come back through
@@ -216,10 +217,19 @@ if (mode is "talk" or "listen" or "video")
         var rms = Math.Sqrt(frame.Pcm.Select(v => (double)v * v).DefaultIfEmpty(0).Average());
         peakRms = Math.Max(peakRms, rms);
 
+        // Per publisher, because "frames are arriving but they are silent" is
+        // impossible to interpret without knowing whose frames they are: a
+        // stale participant still publishing silence looks exactly like a live
+        // one that has gone quiet.
+        perIdentity[frame.Identity] = Math.Max(perIdentity.GetValueOrDefault(frame.Identity), rms);
+
         if (++received % 100 == 0)
         {
-            Console.WriteLine($"audio    {received,5} frames   loudest this second={peakRms,7:F0}");
+            var who = string.Join("  ", perIdentity.Select(kv => $"{kv.Key}={kv.Value:F0}"));
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] audio    {received,5} frames   " +
+                              $"loudest this second={peakRms,7:F0}   {who}");
             peakRms = 0;
+            perIdentity.Clear();
         }
     };
 
@@ -506,7 +516,13 @@ if (mode == "seedbot")
     // TAMIZSIM_TONE, or tone.ogg beside the exe. To make one:
     //   docker run --name tonegen --entrypoint sh livekit/ingress:latest -c     //     "gst-launch-1.0 -q audiotestsrc num-buffers=3000 freq=330 ! audioconvert !     //      audioresample ! vorbisenc ! oggmux ! filesink location=/tmp/tone.ogg"
     //   docker cp tonegen:/tmp/tone.ogg .
+    // tone.mp3 first, because a real downloaded track is what actually needs
+    // testing: an mp3 without a Xing header has to have its frames counted, and
+    // getting that wrong is silence rather than a visible failure.
     var tone = Environment.GetEnvironmentVariable("TAMIZSIM_TONE")
+               ?? new[] { "tone.mp3", "tone.ogg" }
+                   .Select(name => Path.Combine(AppContext.BaseDirectory, name))
+                   .FirstOrDefault(File.Exists)
                ?? Path.Combine(AppContext.BaseDirectory, "tone.ogg");
 
     var sample = File.Exists(tone)
@@ -522,9 +538,22 @@ if (mode == "seedbot")
         ? new[] { "01 opening.ogg", "02 middle eight.ogg", "03 closing.ogg" }
         : ["01 opening.ogg"];
 
-    foreach (var title in titles)
+    // The client converts on the way up, so the simulator does the same thing
+    // with the same code — otherwise this fixture would be testing a path no
+    // real user takes.
+    if (!TamizChat.Audio.OpusFile.IsOpus(sample))
     {
-        var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.ogg");
+        var converted = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.ogg");
+        Console.WriteLine($"  converting {Path.GetFileName(sample)} to Opus…");
+        await TamizChat.Audio.OpusFile.ConvertAsync(sample, converted);
+        sample = converted;
+    }
+
+    var extension = Path.GetExtension(sample);
+
+    foreach (var title in titles.Select(t => Path.ChangeExtension(t, extension)))
+    {
+        var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}{extension}");
         File.Copy(sample, temp, overwrite: true);
 
         var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(await client.RequestAsync(
