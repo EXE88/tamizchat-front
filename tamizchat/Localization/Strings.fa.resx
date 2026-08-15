@@ -781,9 +781,6 @@
   <data name="Admin.BotPlaying" xml:space="preserve">
     <value>پلی‌لیست: {0}</value>
   </data>
-  <data name="Admin.BotLibrary" xml:space="preserve">
-    <value>کتابخانه‌ی خودش</value>
-  </data>
   <data name="Admin.BotState.idle" xml:space="preserve">
     <value>در هیچ اتاقی نیست</value>
   </data>
@@ -814,12 +811,6 @@
   <data name="Admin.UsePlaylist" xml:space="preserve">
     <value>همین پخش شود</value>
   </data>
-  <data name="Admin.Tracks" xml:space="preserve">
-    <value>قطعه‌ها</value>
-  </data>
-  <data name="Admin.HideTracks" xml:space="preserve">
-    <value>بستن قطعه‌ها</value>
-  </data>
   <data name="Admin.NoTracks" xml:space="preserve">
     <value>این پلی‌لیست خالی است.</value>
   </data>
@@ -828,5 +819,56 @@
   </data>
   <data name="Admin.Rename" xml:space="preserve">
     <value>تغییر نام</value>
+  </data>
+  <data name="Admin.BotNoPlaylist" xml:space="preserve">
+    <value>پلی‌لیستی انتخاب نشده</value>
+  </data>
+  <data name="Admin.BotInRoom" xml:space="preserve">
+    <value>در {0}</value>
+  </data>
+  <data name="Admin.BotSendToRoom" xml:space="preserve">
+    <value>فرستادن به یک اتاق</value>
+  </data>
+  <data name="Admin.BotLeaveRoom" xml:space="preserve">
+    <value>بیرون آوردن از اتاق</value>
+  </data>
+  <data name="Admin.BotPlay" xml:space="preserve">
+    <value>پخش</value>
+  </data>
+  <data name="Admin.BotStop" xml:space="preserve">
+    <value>توقف</value>
+  </data>
+  <data name="Admin.BotNeedsRoom" xml:space="preserve">
+    <value>برای پخش، آن را به یک اتاق بفرست</value>
+  </data>
+  <data name="Admin.BotNeedsTracks" xml:space="preserve">
+    <value>اول در یک پلی‌لیست آهنگ بریز</value>
+  </data>
+  <data name="Admin.NoPlaylists" xml:space="preserve">
+    <value>هنوز پلی‌لیستی نیست. یکی بساز و در آن آهنگ بریز.</value>
+  </data>
+  <data name="Admin.PlaylistActive" xml:space="preserve">
+    <value>در حال پخش</value>
+  </data>
+  <data name="Admin.RevokeRoleButton" xml:space="preserve">
+    <value>گرفتن نقش</value>
+  </data>
+  <data name="Admin.RoleGranted" xml:space="preserve">
+    <value>نقش {0} به {1} داده شد</value>
+  </data>
+  <data name="Admin.RoleRevoked" xml:space="preserve">
+    <value>نقش {0} از {1} گرفته شد</value>
+  </data>
+  <data name="Admin.Uploading" xml:space="preserve">
+    <value>در حال آپلود {0}…</value>
+  </data>
+  <data name="Admin.UploadingOf" xml:space="preserve">
+    <value>در حال آپلود {0} ({1} از {2})…</value>
+  </data>
+  <data name="Admin.Uploaded" xml:space="preserve">
+    <value>{0} اضافه شد</value>
+  </data>
+  <data name="Admin.UploadedCount" xml:space="preserve">
+    <value>{0} قطعه اضافه شد</value>
   </data>
 </root>

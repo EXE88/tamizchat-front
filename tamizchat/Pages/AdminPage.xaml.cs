@@ -2,6 +2,7 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using TamizChat.Controls;
 using TamizChat.Core.Protocol;
 using TamizChat.Localization;
@@ -50,8 +51,23 @@ public sealed partial class AdminPage : Page
         Subtitle.Text = Loc.Get("Admin.Subtitle");
     }
 
+    /// <summary>
+    /// Which render is the current one.
+    ///
+    /// Every section that fetches from the server finishes after an await, by
+    /// which time another render may have started — a click, or a presence event
+    /// arriving. Without this, two runs each cleared the page and then each
+    /// appended their own copy, which is exactly what made the playlists card
+    /// appear twice after adding a playlist.
+    /// </summary>
+    private int _render;
+
+    private bool Stale(int token) => token != _render;
+
     private void Render()
     {
+        var token = ++_render;
+
         RenderTabs();
 
         Body.Children.Clear();
@@ -63,7 +79,7 @@ public sealed partial class AdminPage : Page
                 break;
 
             case "bans":
-                _ = RenderBansAsync();
+                _ = RenderBansAsync(token);
                 break;
 
             case "roles":
@@ -75,9 +91,53 @@ public sealed partial class AdminPage : Page
                 break;
 
             case "bots":
-                _ = RenderBotsAsync();
+                _ = RenderBotsAsync(token);
                 break;
         }
+
+        Reveal();
+    }
+
+    /// <summary>
+    /// A short rise-and-fade on the section body.
+    ///
+    /// The page is rebuilt wholesale on every change, so without this a tab
+    /// switch or a refresh is an instantaneous swap with nothing to follow. The
+    /// transform is on the panel, not on each row, so the cost does not grow
+    /// with the number of rows.
+    /// </summary>
+    private void Reveal()
+    {
+        var slide = new TranslateTransform { Y = 10 };
+        Body.RenderTransform = slide;
+        Body.Opacity = 0;
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var story = new Storyboard();
+
+        var fade = new DoubleAnimation
+        {
+            To = 1,
+            Duration = new Duration(TimeSpan.FromMilliseconds(180)),
+            EasingFunction = ease,
+        };
+
+        Storyboard.SetTarget(fade, Body);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+        story.Children.Add(fade);
+
+        var rise = new DoubleAnimation
+        {
+            To = 0,
+            Duration = new Duration(TimeSpan.FromMilliseconds(220)),
+            EasingFunction = ease,
+        };
+
+        Storyboard.SetTarget(rise, slide);
+        Storyboard.SetTargetProperty(rise, "Y");
+        story.Children.Add(rise);
+
+        story.Begin();
     }
 
     private void RenderTabs()
@@ -173,8 +233,11 @@ public sealed partial class AdminPage : Page
                 Margin = new Thickness(0, 8, 0, 0),
             };
 
-            // Granting: only roles they do not already have.
-            var grantable = session.Roles.Where(r => !user.Roles.Contains(r.Id)).ToList();
+            // Granting: only roles they do not already have. A role that is not
+            // marked default and that they hold can be taken back — the tag is
+            // also a way to do it, but a tag is not an obvious button, and
+            // "I could not revoke it" turned out to mean "I never found it".
+            var grantable = session.Roles.Where(r => !user.Roles.Contains(r.Id) && !r.IsDefault).ToList();
             if (grantable.Count > 0)
             {
                 var grant = new DropDownButton { Content = Loc.Get("Admin.GrantRole") };
@@ -183,12 +246,36 @@ public sealed partial class AdminPage : Page
                 foreach (var role in grantable)
                 {
                     var entry = new MenuFlyoutItem { Text = role.Name };
-                    entry.Click += (_, _) => Run(() => session.GrantRoleAsync(user.ClientUuid, role.Id));
+                    entry.Click += (_, _) => Run(
+                        () => session.GrantRoleAsync(user.ClientUuid, role.Id),
+                        Loc.Get("Admin.RoleGranted", role.Name, user.Username));
                     menu.Items.Add(entry);
                 }
 
                 grant.Flyout = menu;
                 actions.Children.Add(grant);
+            }
+
+            var revocable = session.Roles
+                .Where(r => user.Roles.Contains(r.Id) && !r.IsDefault)
+                .ToList();
+
+            if (revocable.Count > 0)
+            {
+                var revoke = new DropDownButton { Content = Loc.Get("Admin.RevokeRoleButton") };
+                var menu = new MenuFlyout();
+
+                foreach (var role in revocable)
+                {
+                    var entry = new MenuFlyoutItem { Text = role.Name };
+                    entry.Click += (_, _) => Run(
+                        () => session.RevokeRoleAsync(user.ClientUuid, role.Id),
+                        Loc.Get("Admin.RoleRevoked", role.Name, user.Username));
+                    menu.Items.Add(entry);
+                }
+
+                revoke.Flyout = menu;
+                actions.Children.Add(revoke);
             }
 
             if (user.ClientUuid != session.MyUuid)
@@ -211,7 +298,7 @@ public sealed partial class AdminPage : Page
 
     // --- bans ---
 
-    private async Task RenderBansAsync()
+    private async Task RenderBansAsync(int token)
     {
         var session = ServerSession.Instance;
 
@@ -227,8 +314,9 @@ public sealed partial class AdminPage : Page
             return;
         }
 
-        // The tab may have been changed while that request was in flight.
-        if (_tab != "bans")
+        // The tab may have been changed, or the page rebuilt, while that request
+        // was in flight.
+        if (Stale(token))
         {
             return;
         }
@@ -287,7 +375,7 @@ public sealed partial class AdminPage : Page
     {
         var session = ServerSession.Instance;
 
-        var add = Action(Loc.Get("Admin.NewRole"), () => EditRoleAsync(null));
+        var add = Opens(Loc.Get("Admin.NewRole"), () => EditRoleAsync(null));
         add.HorizontalAlignment = HorizontalAlignment.Left;
         Body.Children.Add(add);
 
@@ -324,7 +412,7 @@ public sealed partial class AdminPage : Page
                 Margin = new Thickness(0, 8, 0, 0),
             };
 
-            actions.Children.Add(Action(Loc.Get("Admin.Edit"), () => EditRoleAsync(role)));
+            actions.Children.Add(Opens(Loc.Get("Admin.Edit"), () => EditRoleAsync(role)));
 
             // A default role is what everybody gets on arrival; deleting it would
             // leave new users with nothing at all.
@@ -351,8 +439,6 @@ public sealed partial class AdminPage : Page
         await Guarded(() => existing is null
             ? ServerSession.Instance.CreateRoleAsync(spec)
             : ServerSession.Instance.UpdateRoleAsync(spec));
-
-        Render();
     }
 
     // --- rooms ---
@@ -361,7 +447,7 @@ public sealed partial class AdminPage : Page
     {
         var session = ServerSession.Instance;
 
-        var add = Action(Loc.Get("Admin.NewRoom"), () => EditRoomAsync(null));
+        var add = Opens(Loc.Get("Admin.NewRoom"), () => EditRoomAsync(null));
         add.HorizontalAlignment = HorizontalAlignment.Left;
         Body.Children.Add(add);
 
@@ -403,7 +489,7 @@ public sealed partial class AdminPage : Page
                 Margin = new Thickness(0, 8, 0, 0),
             };
 
-            actions.Children.Add(Action(Loc.Get("Admin.Edit"), () => EditRoomAsync(room)));
+            actions.Children.Add(Opens(Loc.Get("Admin.Edit"), () => EditRoomAsync(room)));
             actions.Children.Add(Action(Loc.Get("Admin.Delete"), () => session.DeleteRoomAsync(room.Id), danger: true));
 
             card.Children.Add(actions);
@@ -424,18 +510,14 @@ public sealed partial class AdminPage : Page
         await Guarded(() => existing is null
             ? ServerSession.Instance.CreateRoomAsync(result.Create)
             : ServerSession.Instance.UpdateRoomAsync(result.Update));
-
-        Render();
     }
 
     // --- bots ---
 
-    /// <summary>Which bot's playlists are open, and which playlist's tracks.</summary>
+    /// <summary>Which bot's playlists are open. Only one at a time.</summary>
     private string _openBot = "";
 
-    private string _openPlaylist = "";
-
-    private async Task RenderBotsAsync()
+    private async Task RenderBotsAsync(int token)
     {
         var session = ServerSession.Instance;
 
@@ -451,15 +533,14 @@ public sealed partial class AdminPage : Page
             return;
         }
 
-        // The tab may have been changed while that request was in flight.
-        if (_tab != "bots")
+        if (Stale(token))
         {
             return;
         }
 
         Body.Children.Clear();
 
-        var add = Action(Loc.Get("Admin.NewBot"), () => EditBotAsync(null));
+        var add = Opens(Loc.Get("Admin.NewBot"), () => EditBotAsync(null));
         add.HorizontalAlignment = HorizontalAlignment.Left;
         Body.Children.Add(add);
 
@@ -485,7 +566,7 @@ public sealed partial class AdminPage : Page
 
         if (slot >= 0)
         {
-            await RenderPlaylistsAsync(_openBot, slot);
+            await RenderPlaylistsAsync(_openBot, slot, token);
         }
     }
 
@@ -514,15 +595,30 @@ public sealed partial class AdminPage : Page
             Foreground = (Brush)Application.Current.Resources["TcTextPrimaryBrush"],
         });
 
+        if (bot.State == "playing" && bot.Track is { } track)
+        {
+            header.Children.Add(new TextBlock
+            {
+                Text = "♪ " + track.Title,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Foreground = (Brush)Application.Current.Resources["TcAccentBrush"],
+            });
+        }
+
         card.Children.Add(header);
+
+        var room = session.Rooms.FirstOrDefault(r => r.Id == bot.RoomId);
 
         var bits = new List<string>
         {
-            Loc.Get("Admin.BotState." + (bot.State.Length == 0 ? "idle" : bot.State)),
+            room is null
+                ? Loc.Get("Admin.BotState.idle")
+                : Loc.Get("Admin.BotInRoom", room.Name) + " · " + Loc.Get("Admin.BotState." + bot.State),
             Loc.Get("Admin.BotTracks", bot.TrackCount),
             bot.PlaylistName.Length > 0
                 ? Loc.Get("Admin.BotPlaying", bot.PlaylistName)
-                : Loc.Get("Admin.BotLibrary"),
+                : Loc.Get("Admin.BotNoPlaylist"),
         };
 
         if (!bot.Enabled)
@@ -538,6 +634,14 @@ public sealed partial class AdminPage : Page
             Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
         });
 
+        // Playback. A bot that is not in a room is silent wherever it is
+        // pointed, so the room picker comes first and everything else is
+        // disabled until it has somewhere to play.
+        if (session.Can("control_bots"))
+        {
+            card.Children.Add(BotControls(bot, room));
+        }
+
         var actions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -550,16 +654,88 @@ public sealed partial class AdminPage : Page
         playlists.Click += (_, _) =>
         {
             _openBot = open ? "" : bot.Id;
-            _openPlaylist = "";
             Render();
         };
 
         actions.Children.Add(playlists);
-        actions.Children.Add(Action(Loc.Get("Admin.Edit"), () => EditBotAsync(bot)));
-        actions.Children.Add(Action(Loc.Get("Admin.Delete"), () => DeleteBotAsync(bot), danger: true));
+        actions.Children.Add(Opens(Loc.Get("Admin.Edit"), () => EditBotAsync(bot)));
+        actions.Children.Add(Danger(Loc.Get("Admin.Delete"), () => DeleteBotAsync(bot)));
 
         card.Children.Add(actions);
         return card;
+    }
+
+    /// <summary>The transport: where the bot is, and what it is doing there.</summary>
+    private StackPanel BotControls(Bot bot, Room? room)
+    {
+        var session = ServerSession.Instance;
+
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+
+        var picker = new DropDownButton
+        {
+            Content = room is null ? Loc.Get("Admin.BotSendToRoom") : Loc.Get("Admin.BotInRoom", room.Name),
+        };
+
+        var menu = new MenuFlyout();
+
+        foreach (var candidate in session.Rooms)
+        {
+            var entry = new MenuFlyoutItem { Text = candidate.Name, IsEnabled = candidate.Id != bot.RoomId };
+            entry.Click += (_, _) => Run(() => session.MoveBotAsync(bot.Id, candidate.Id));
+            menu.Items.Add(entry);
+        }
+
+        if (room is not null)
+        {
+            menu.Items.Add(new MenuFlyoutSeparator());
+            var out_ = new MenuFlyoutItem { Text = Loc.Get("Admin.BotLeaveRoom") };
+            out_.Click += (_, _) => Run(() => session.MoveBotAsync(bot.Id, ""));
+            menu.Items.Add(out_);
+        }
+
+        picker.Flyout = menu;
+        row.Children.Add(picker);
+
+        // Playing needs a room and something to play; saying so up front beats a
+        // refusal after the press.
+        var playable = bot.Enabled && room is not null && bot.TrackCount > 0;
+        var playing = bot.State == "playing";
+
+        var play = new Button
+        {
+            Content = Loc.Get(playing ? "Admin.BotStop" : "Admin.BotPlay"),
+            IsEnabled = playable,
+        };
+
+        play.Click += (_, _) => Run(() => session.ControlBotAsync(bot.Id, playing ? "stop" : "play"));
+        row.Children.Add(play);
+
+        var prev = new Button { Content = "⏮", IsEnabled = playable };
+        prev.Click += (_, _) => Run(() => session.ControlBotAsync(bot.Id, "prev"));
+        row.Children.Add(prev);
+
+        var next = new Button { Content = "⏭", IsEnabled = playable };
+        next.Click += (_, _) => Run(() => session.ControlBotAsync(bot.Id, "next"));
+        row.Children.Add(next);
+
+        if (!playable && bot.Enabled)
+        {
+            row.Children.Add(new TextBlock
+            {
+                Text = room is null ? Loc.Get("Admin.BotNeedsRoom") : Loc.Get("Admin.BotNeedsTracks"),
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
+            });
+        }
+
+        return row;
     }
 
     private async Task EditBotAsync(Bot? existing)
@@ -608,7 +784,7 @@ public sealed partial class AdminPage : Page
         await Guarded(() => ServerSession.Instance.DeleteBotAsync(bot.Id));
     }
 
-    private async Task RenderPlaylistsAsync(string botId, int slot)
+    private async Task RenderPlaylistsAsync(string botId, int slot, int token)
     {
         var session = ServerSession.Instance;
 
@@ -624,13 +800,14 @@ public sealed partial class AdminPage : Page
             return;
         }
 
-        if (_tab != "bots" || _openBot != botId)
+        if (Stale(token) || _openBot != botId)
         {
             return;
         }
 
         var panel = Card();
         panel.Margin = new Thickness(24, 0, 0, 0);
+        panel.ChildrenTransitions = [new EntranceThemeTransition { FromVerticalOffset = 12 }, new RepositionThemeTransition()];
 
         var header = new StackPanel
         {
@@ -647,22 +824,22 @@ public sealed partial class AdminPage : Page
             Foreground = (Brush)Application.Current.Resources["TcTextPrimaryBrush"],
         });
 
-        header.Children.Add(Action(Loc.Get("Admin.NewPlaylist"), () => NamePlaylistAsync(botId, null)));
+        header.Children.Add(Opens(Loc.Get("Admin.NewPlaylist"), () => NamePlaylistAsync(botId, null)));
         panel.Children.Add(header);
-
-        // The library is a row like any other, so "play everything loose in the
-        // bot's own folder" is reachable rather than only being the state you
-        // end up in after deleting a playlist.
-        panel.Children.Add(PlaylistRow(botId, null, lists.Active.Length == 0));
 
         foreach (var list in lists.Playlists)
         {
-            panel.Children.Add(PlaylistRow(botId, list, list.Id == lists.Active));
+            panel.Children.Add(PlaylistExpander(botId, list, list.Id == lists.Active));
+        }
 
-            if (list.Id == _openPlaylist)
+        if (lists.Playlists.Count == 0)
+        {
+            panel.Children.Add(new TextBlock
             {
-                await RenderTracksAsync(panel, botId, list);
-            }
+                Text = Loc.Get("Admin.NoPlaylists"),
+                FontSize = 12,
+                Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
+            });
         }
 
         // The list may have been rebuilt while the playlists were being fetched,
@@ -670,62 +847,122 @@ public sealed partial class AdminPage : Page
         Body.Children.Insert(Math.Min(slot, Body.Children.Count), panel);
     }
 
-    private StackPanel PlaylistRow(string botId, BotPlaylist? list, bool active)
+    /// <summary>
+    /// One playlist, as something that opens.
+    ///
+    /// The tracks live inside the expander rather than behind a button, because
+    /// "what is in this playlist" is the question being asked, and they are
+    /// fetched only when it is opened — a server with a dozen playlists should
+    /// not read every folder to draw a list of names.
+    /// </summary>
+    private Expander PlaylistExpander(string botId, BotPlaylist list, bool active)
     {
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Margin = new Thickness(0, 4, 0, 4),
-        };
+        var session = ServerSession.Instance;
 
-        var label = list is null
-            ? Loc.Get("Admin.BotLibrary")
-            : $"{list.Name} · {Loc.Get("Admin.BotTracks", list.TrackCount)}";
+        var title = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
-        row.Children.Add(new TextBlock
+        title.Children.Add(new TextBlock
         {
-            Text = active ? "▶ " + label : label,
-            Width = 260,
+            Text = list.Name,
+            FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = (Brush)Application.Current.Resources[
-                active ? "TcTextPrimaryBrush" : "TcTextSecondaryBrush"],
+            Foreground = (Brush)Application.Current.Resources["TcTextPrimaryBrush"],
         });
+
+        title.Children.Add(new TextBlock
+        {
+            Text = Loc.Get("Admin.BotTracks", list.TrackCount),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
+        });
+
+        if (active)
+        {
+            title.Children.Add(new Border
+            {
+                Background = (Brush)Application.Current.Resources["TcAccentBrush"],
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(8, 2, 8, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = Loc.Get("Admin.PlaylistActive"),
+                    FontSize = 11,
+                    Foreground = (Brush)Application.Current.Resources["TcOnAccentBrush"],
+                },
+            });
+        }
+
+        var body = new StackPanel { Spacing = 6 };
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
         if (!active)
         {
-            row.Children.Add(Action(
+            actions.Children.Add(Action(
                 Loc.Get("Admin.UsePlaylist"),
-                () => ServerSession.Instance.SelectPlaylistAsync(botId, list?.Id ?? "")));
+                () => session.SelectPlaylistAsync(botId, list.Id)));
         }
 
-        if (list is null)
-        {
-            return row;
-        }
-
-        var open = list.Id == _openPlaylist;
-        var tracks = new Button { Content = Loc.Get(open ? "Admin.HideTracks" : "Admin.Tracks") };
-        tracks.Click += (_, _) =>
-        {
-            _openPlaylist = open ? "" : list.Id;
-            Render();
-        };
-
-        row.Children.Add(tracks);
-        row.Children.Add(Action(Loc.Get("Admin.AddTracks"), () => AddTracksAsync(botId, list.Id)));
-        row.Children.Add(Action(Loc.Get("Admin.Rename"), () => NamePlaylistAsync(botId, list)));
-        row.Children.Add(Action(
+        actions.Children.Add(Opens(Loc.Get("Admin.AddTracks"), () => AddTracksAsync(botId, list.Id)));
+        actions.Children.Add(Opens(Loc.Get("Admin.Rename"), () => NamePlaylistAsync(botId, list)));
+        actions.Children.Add(Action(
             Loc.Get("Admin.Delete"),
             () => ServerSession.Instance.DeletePlaylistAsync(botId, list.Id),
             danger: true));
 
-        return row;
+        body.Children.Add(actions);
+
+        var tracks = new StackPanel
+        {
+            Spacing = 2,
+            Margin = new Thickness(0, 6, 0, 0),
+            ChildrenTransitions = [new EntranceThemeTransition { FromVerticalOffset = 8 }],
+        };
+
+        body.Children.Add(tracks);
+
+        var expander = new Expander
+        {
+            Header = title,
+            Content = body,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            IsExpanded = list.Id == _openPlaylist,
+        };
+
+        // Loading on expand keeps the common case — a glance at the list of
+        // playlists — down to one request.
+        expander.Expanding += (_, _) =>
+        {
+            _openPlaylist = list.Id;
+            _ = FillTracksAsync(tracks, botId, list);
+        };
+
+        expander.Collapsed += (_, _) =>
+        {
+            if (_openPlaylist == list.Id)
+            {
+                _openPlaylist = "";
+            }
+        };
+
+        if (expander.IsExpanded)
+        {
+            _ = FillTracksAsync(tracks, botId, list);
+        }
+
+        return expander;
     }
 
-    private async Task RenderTracksAsync(StackPanel panel, string botId, BotPlaylist list)
+    private string _openPlaylist = "";
+
+    private async Task FillTracksAsync(StackPanel into, string botId, BotPlaylist list)
     {
+        into.Children.Clear();
+        into.Children.Add(new ProgressRing { IsActive = true, Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Left });
+
         IReadOnlyList<BotTrack> tracks;
 
         try
@@ -734,22 +971,19 @@ public sealed partial class AdminPage : Page
         }
         catch (Exception ex)
         {
+            into.Children.Clear();
             Fail(ex);
             return;
         }
 
-        if (_openPlaylist != list.Id)
-        {
-            return;
-        }
+        into.Children.Clear();
 
         if (tracks.Count == 0)
         {
-            panel.Children.Add(new TextBlock
+            into.Children.Add(new TextBlock
             {
                 Text = Loc.Get("Admin.NoTracks"),
                 FontSize = 12,
-                Margin = new Thickness(24, 0, 0, 6),
                 Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
             });
 
@@ -758,30 +992,37 @@ public sealed partial class AdminPage : Page
 
         foreach (var track in tracks)
         {
-            var row = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 8,
-                Margin = new Thickness(24, 2, 0, 2),
-            };
+            var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            row.Children.Add(new TextBlock
+            var label = new TextBlock
             {
                 Text = $"{track.Index + 1}. {track.Title}",
-                Width = 280,
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
-            });
+            };
+
+            row.Children.Add(label);
 
             // The index is a position in this playlist, and every delete shifts
-            // the ones after it — which is why the whole tab is redrawn after.
-            row.Children.Add(Action(
-                Loc.Get("Admin.Delete"),
-                () => ServerSession.Instance.DeleteTrackAsync(botId, list.Id, track.Index),
-                danger: true));
+            // the ones after it — which is why the list is redrawn after one.
+            var remove = new Button
+            {
+                Content = "✕",
+                Padding = new Thickness(8, 2, 8, 2),
+                Foreground = (Brush)Application.Current.Resources["TcDangerBrush"],
+            };
 
-            panel.Children.Add(row);
+            ToolTipService.SetToolTip(remove, Loc.Get("Admin.Delete"));
+            remove.Click += (_, _) => Run(() =>
+                ServerSession.Instance.DeleteTrackAsync(botId, list.Id, track.Index));
+
+            Grid.SetColumn(remove, 1);
+            row.Children.Add(remove);
+
+            into.Children.Add(row);
         }
     }
 
@@ -823,11 +1064,14 @@ public sealed partial class AdminPage : Page
     }
 
     /// <summary>
-    /// Uploads tracks one at a time, and stops at the first refusal.
+    /// Uploads tracks one at a time, showing which file is going and how far it
+    /// has got.
     ///
-    /// Carrying on after one is rejected would leave the user guessing which of
-    /// twenty files actually arrived; the message says which one failed, and
-    /// whatever went before it is already in the playlist.
+    /// One at a time rather than all at once: several large files in parallel
+    /// compete for the same connection and finish no sooner, and a failure in
+    /// the middle of a parallel batch leaves nobody able to say what arrived.
+    /// The upload stops at the first refusal, and says which file it was —
+    /// everything before it is already in the playlist.
     /// </summary>
     private async Task AddTracksAsync(string botId, string playlistId)
     {
@@ -849,17 +1093,36 @@ public sealed partial class AdminPage : Page
         }
 
         Status.Visibility = Visibility.Collapsed;
+        Upload.Visibility = Visibility.Visible;
+        UploadBar.Value = 0;
+
+        var done = 0;
 
         try
         {
             foreach (var file in files)
             {
-                await ServerSession.Instance.UploadTrackAsync(botId, playlistId, file.Path);
+                var index = done + 1;
+                UploadLabel.Text = files.Count == 1
+                    ? Loc.Get("Admin.Uploading", file.Name)
+                    : Loc.Get("Admin.UploadingOf", file.Name, index, files.Count);
+
+                var progress = new Progress<double>(percent => UploadBar.Value = percent);
+                await ServerSession.Instance.UploadTrackAsync(botId, playlistId, file.Path, progress);
+                done++;
             }
+
+            Note(files.Count == 1
+                ? Loc.Get("Admin.Uploaded", files[0].Name)
+                : Loc.Get("Admin.UploadedCount", done));
         }
         catch (Exception ex)
         {
             Fail(ex);
+        }
+        finally
+        {
+            Upload.Visibility = Visibility.Collapsed;
         }
 
         Render();
@@ -890,6 +1153,43 @@ public sealed partial class AdminPage : Page
         Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"],
     };
 
+    /// <summary>
+    /// A button that opens a dialog.
+    ///
+    /// Unlike Action, this does not wrap the call in Guarded: the dialog does
+    /// its own saving and its own refresh afterwards, and wrapping it meant two
+    /// renders raced each other — one of them holding the list as it was before
+    /// the dialog, which is how a new playlist could fail to appear until the
+    /// panel was closed and opened again.
+    /// </summary>
+    private Button Opens(string label, Func<Task> open)
+    {
+        var button = new Button { Content = label };
+
+        button.Click += (_, _) => _ = OpenGuarded(open);
+        return button;
+    }
+
+    private async Task OpenGuarded(Func<Task> open)
+    {
+        try
+        {
+            await open();
+        }
+        catch (Exception ex)
+        {
+            Fail(ex);
+        }
+    }
+
+    /// <summary>A dialog-opening button that destroys something.</summary>
+    private Button Danger(string label, Func<Task> open)
+    {
+        var button = Opens(label, open);
+        button.Foreground = (Brush)Application.Current.Resources["TcDangerBrush"];
+        return button;
+    }
+
     private Button Action(string label, Func<Task> action, bool danger = false)
     {
         var button = new Button { Content = label };
@@ -903,7 +1203,7 @@ public sealed partial class AdminPage : Page
         return button;
     }
 
-    private void Run(Func<Task> action) => _ = Guarded(action).ContinueWith(
+    private void Run(Func<Task> action, string? done = null) => _ = Guarded(action, done).ContinueWith(
         _ => { },
         TaskScheduler.FromCurrentSynchronizationContext());
 
@@ -914,13 +1214,21 @@ public sealed partial class AdminPage : Page
     /// administrator can be told no by their own server, and they need to see
     /// that rather than watch a button do nothing.
     /// </summary>
-    private async Task Guarded(Func<Task> action)
+    private async Task Guarded(Func<Task> action, string? done = null)
     {
         Status.Visibility = Visibility.Collapsed;
 
         try
         {
             await action();
+
+            // Something that worked has to say so. A grant that changed the
+            // server but drew nothing back looked exactly like a dead button.
+            if (done is not null)
+            {
+                Note(done);
+            }
+
             Render();
         }
         catch (Exception ex)
@@ -932,6 +1240,31 @@ public sealed partial class AdminPage : Page
     private void Fail(Exception ex)
     {
         Status.Text = ex.Message;
+        Status.Foreground = (Brush)Application.Current.Resources["TcDangerBrush"];
         Status.Visibility = Visibility.Visible;
     }
+
+    /// <summary>Confirms something that succeeded, and fades itself away.</summary>
+    private void Note(string text)
+    {
+        Status.Text = text;
+        Status.Foreground = (Brush)Application.Current.Resources["TcTextSecondaryBrush"];
+        Status.Visibility = Visibility.Visible;
+
+        var mine = ++_note;
+
+        _ = Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(
+            _ =>
+            {
+                // Only the most recent note clears itself, or a fast second
+                // action would be wiped by the first one's timer.
+                if (mine == _note)
+                {
+                    Status.Visibility = Visibility.Collapsed;
+                }
+            },
+            TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    private int _note;
 }

@@ -465,6 +465,16 @@ if (mode == "seedbot")
     // Leaves a bot with a playlist and a few tracks on the server and exits, so
     // the client's Bots tab has something real to show. Nothing here is checked
     // — `bots` is the test; this is the fixture.
+    // Idempotent: a fixture you cannot run twice is a fixture you stop using.
+    var existing = TamizChatClient.Deserialize<BotListReply>(
+        await client.RequestAsync(MessageTypes.BotList))!;
+
+    foreach (var old in existing.Bots.Where(b => b.Name == "Radio"))
+    {
+        await client.RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = old.Id });
+        Console.WriteLine($"  removed the previous {old.Name}");
+    }
+
     var bot = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
         MessageTypes.BotCreate,
         new BotSpec { Name = "Radio", Color = "#1abc9c", Loop = true }))!;
@@ -473,10 +483,37 @@ if (mode == "seedbot")
         MessageTypes.BotPlaylistCreate,
         new BotPlaylistSpec { BotId = bot.Id, Name = "Evening set" }))!;
 
-    foreach (var title in new[] { "01 opening.mp3", "02 middle eight.mp3", "03 closing.mp3" })
+    // Real audio, and long enough to watch: Ingress runs the bytes through
+    // GStreamer, so a text file with an .mp3 name is accepted by this server and
+    // refused by the transcoder — which then looks like a bug in TamizChat when
+    // it is not. A one-second clip is just as useless, because it is over before
+    // anybody has subscribed.
+    // The bundled ogg clips are about a second each, which is over before anyone
+    // has subscribed. Chaining a clip end to end makes a file long enough to
+    // watch; ogg is a chained format, so this is a legal stream rather than a
+    // trick. A raw WAV is not an option: Ingress hands the bytes to GStreamer,
+    // which rejects it with "input caps validation failed".
+    // A long single-stream ogg if one is next to the executable, and the short
+    // bundled clip otherwise. Chaining the short clip does not work: GStreamer
+    // reaches end-of-stream at the first chain boundary, so the "30 second"
+    // file played for one second — which looks exactly like a broken bot.
+    //
+    // TAMIZSIM_TONE, or tone.ogg beside the exe. To make one:
+    //   docker run --name tonegen --entrypoint sh livekit/ingress:latest -c     //     "gst-launch-1.0 -q audiotestsrc num-buffers=3000 freq=330 ! audioconvert !     //      audioresample ! vorbisenc ! oggmux ! filesink location=/tmp/tone.ogg"
+    //   docker cp tonegen:/tmp/tone.ogg .
+    var tone = Environment.GetEnvironmentVariable("TAMIZSIM_TONE")
+               ?? Path.Combine(AppContext.BaseDirectory, "tone.ogg");
+
+    var sample = File.Exists(tone)
+        ? tone
+        : Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "you-joined-server.ogg");
+
+    Console.WriteLine($"  source   {Path.GetFileName(sample)}");
+
+    foreach (var title in new[] { "01 opening.ogg", "02 middle eight.ogg", "03 closing.ogg" })
     {
-        var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.mp3");
-        await File.WriteAllTextAsync(temp, $"placeholder for {title}\n");
+        var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.ogg");
+        File.Copy(sample, temp, overwrite: true);
 
         var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(await client.RequestAsync(
             MessageTypes.BotTrackUploadRequest,
@@ -503,6 +540,24 @@ if (mode == "seedbot")
     await client.RequestAsync(
         MessageTypes.BotPlaylistSelect,
         new BotPlaylistSpec { BotId = bot.Id, PlaylistId = list.Id });
+
+    // Put it in a room and start it, so the whole path — Ingress fetching the
+    // track from this server and publishing it — is exercised, not just the
+    // database rows.
+    var moved = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+        MessageTypes.BotMove, new BotMove { BotId = bot.Id, RoomId = target.Id }))!;
+    Console.WriteLine($"  moved to {target.Name}: state={moved.State}");
+
+    try
+    {
+        var playing = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+            MessageTypes.BotControl, new BotControl { BotId = bot.Id, Action = "play" }))!;
+        Console.WriteLine($"  play: state={playing.State} track={playing.Track?.Title}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  play FAILED: {ex.Message}");
+    }
 
     Console.WriteLine($"seeded {bot.Name} with {list.Name}");
     return 0;
@@ -714,6 +769,39 @@ static void Report(ServerEventArgs e)
 }
 
 // A name-derived UUID, so "Sim" is always the same client to the server.
+// WriteTone writes a mono 48 kHz WAV of a steady tone. A generated file keeps
+// the fixture self-contained: no asset to ship, any length, and a pitch per
+// track so which one is playing can be heard.
+static void WriteTone(string path, int hz, int seconds)
+{
+    const int rate = 48000;
+    var samples = rate * seconds;
+    var data = new byte[samples * 2];
+
+    for (var i = 0; i < samples; i++)
+    {
+        var value = (short)(Math.Sin(2 * Math.PI * hz * i / rate) * 8000);
+        data[i * 2] = (byte)(value & 0xff);
+        data[(i * 2) + 1] = (byte)((value >> 8) & 0xff);
+    }
+
+    using var file = new BinaryWriter(File.Create(path));
+    file.Write("RIFF"u8.ToArray());
+    file.Write(36 + data.Length);
+    file.Write("WAVE"u8.ToArray());
+    file.Write("fmt "u8.ToArray());
+    file.Write(16);            // PCM header size
+    file.Write((short)1);      // PCM
+    file.Write((short)1);      // mono
+    file.Write(rate);
+    file.Write(rate * 2);      // byte rate
+    file.Write((short)2);      // block align
+    file.Write((short)16);     // bits per sample
+    file.Write("data"u8.ToArray());
+    file.Write(data.Length);
+    file.Write(data);
+}
+
 static string StableUuid(string name)
 {
     var hash = System.Security.Cryptography.MD5.HashData(

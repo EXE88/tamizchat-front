@@ -27,20 +27,34 @@ public static class Dialogs
             dialog.RequestedTheme = content.RequestedTheme;
         }
 
-        foreach (var key in new[]
+        // The stock accent keys are overridden with the palette's own accent, so
+        // the primary button follows the theme instead of coming out Windows
+        // blue. Taking the colour from TcAccentBrush rather than from the stock
+        // keys is what makes this work under every palette: those keys are not
+        // always redefined at application level, and when they are not, there
+        // was nothing to copy and the button stayed blue.
+        var accent = Application.Current.Resources.TryGetValue("TcAccentBrush", out var themed)
+            ? themed as SolidColorBrush
+            : null;
+
+        var onAccent = Application.Current.Resources.TryGetValue("TcOnAccentBrush", out var onThemed)
+            ? onThemed as SolidColorBrush
+            : null;
+
+        foreach (var (key, source) in new[]
         {
-            "AccentFillColorDefaultBrush",
-            "AccentFillColorSecondaryBrush",
-            "AccentFillColorTertiaryBrush",
-            "TextOnAccentFillColorPrimaryBrush",
+            ("AccentFillColorDefaultBrush", accent),
+            ("AccentFillColorSecondaryBrush", accent),
+            ("AccentFillColorTertiaryBrush", accent),
+            ("TextOnAccentFillColorPrimaryBrush", onAccent),
         })
         {
-            if (Application.Current.Resources.TryGetValue(key, out var brush) && brush is SolidColorBrush solid)
+            if (source is not null)
             {
                 // A new brush rather than the shared instance: the dialog's
                 // dictionary would otherwise hold a reference that ThemeManager
                 // keeps mutating after the dialog is gone.
-                dialog.Resources[key] = new SolidColorBrush(solid.Color);
+                dialog.Resources[key] = new SolidColorBrush(source.Color);
             }
         }
 

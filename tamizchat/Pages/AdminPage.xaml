@@ -38,11 +38,48 @@
             Grid.Row="1"
             Margin="0,16,0,12"
             Orientation="Horizontal"
-            Spacing="8" />
+            Spacing="8">
+            <StackPanel.ChildrenTransitions>
+                <EntranceThemeTransition FromHorizontalOffset="16" />
+            </StackPanel.ChildrenTransitions>
+        </StackPanel>
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="Body" Spacing="10" />
+            <StackPanel x:Name="Body" Spacing="10">
+                <!--
+                    Rows animate in as they are added and slide rather than jump
+                    when the ones above them change size — which is what opening
+                    a playlist or deleting a track does.
+                -->
+                <StackPanel.ChildrenTransitions>
+                    <EntranceThemeTransition FromVerticalOffset="14" />
+                    <RepositionThemeTransition />
+                </StackPanel.ChildrenTransitions>
+            </StackPanel>
         </ScrollViewer>
+
+        <!--
+            Upload progress. It sits above the bottom bar rather than in the list
+            so it stays put while the list underneath is rebuilt after each file.
+        -->
+        <Border
+            x:Name="Upload"
+            Grid.Row="2"
+            Margin="0,0,0,12"
+            Padding="16,12,16,12"
+            VerticalAlignment="Bottom"
+            Background="{StaticResource TcSurfaceBrush}"
+            CornerRadius="{StaticResource TcCardCornerRadius}"
+            Visibility="Collapsed">
+            <StackPanel Spacing="8">
+                <TextBlock
+                    x:Name="UploadLabel"
+                    FontSize="12"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{StaticResource TcTextPrimaryBrush}" />
+                <ProgressBar x:Name="UploadBar" Maximum="100" Minimum="0" />
+            </StackPanel>
+        </Border>
 
         <!--
             Refusals belong under the tabs, not at the bottom of the page: the

@@ -620,7 +620,7 @@ public sealed class ServerSession
     /// it and a listener sees it as the title.
     /// </summary>
     public async Task UploadTrackAsync(string botId, string playlistId, string path,
-        CancellationToken cancellationToken = default)
+        IProgress<double>? percent = null, CancellationToken cancellationToken = default)
     {
         if (Server is null)
         {
@@ -643,8 +643,7 @@ public sealed class ServerSession
         var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(reply)
                      ?? throw new InvalidOperationException("the server did not return an upload ticket");
 
-        await using var stream = File.OpenRead(path);
-        using var content = new StreamContent(stream);
+        using var content = new ProgressStreamContent(File.OpenRead(path), info.Length, percent);
         using var request = new HttpRequestMessage(HttpMethod.Post, Absolute(ticket.Url)) { Content = content };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
 
@@ -652,7 +651,8 @@ public sealed class ServerSession
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(true);
-            throw new InvalidOperationException($"upload refused ({(int)response.StatusCode}): {body}");
+            throw new InvalidOperationException(
+                $"{Path.GetFileName(path)}: upload refused ({(int)response.StatusCode}) {body}");
         }
     }
 
@@ -736,9 +736,14 @@ public sealed class ServerSession
                 // Someone disconnecting entirely. Whoever was in your room also
                 // produces room.member_left, so this is only the server-wide
                 // departure and is deliberately the quieter of the two.
-                if (e.As<UserLeftEvent>() is { } gone && gone.ClientUuid != MyUuid)
+                if (e.As<UserLeftEvent>() is { } gone)
                 {
-                    Cue(AppSound.UserLeftServer);
+                    if (gone.ClientUuid != MyUuid)
+                    {
+                        Cue(AppSound.UserLeftServer);
+                    }
+
+                    Users = Users.Where(u => u.ClientUuid != gone.ClientUuid).ToList();
                 }
 
                 QueueRefresh();
@@ -746,6 +751,18 @@ public sealed class ServerSession
 
             case MessageTypes.UserJoined:
             case MessageTypes.UserUpdated:
+                // These carry the user themselves, roles included, so the list
+                // is patched from the event rather than waiting for a reconnect.
+                // user.updated is also how one administrator learns that another
+                // changed somebody's roles.
+                if (e.As<User>() is { } who)
+                {
+                    ApplyUser(who);
+                }
+
+                QueueRefresh();
+                break;
+
             case "room.created":
             case "room.updated":
             case "room.deleted":
@@ -871,6 +888,27 @@ public sealed class ServerSession
         });
     }
 
+    /// <summary>
+    /// Adds or replaces one user in the roster, keeping it sorted by name.
+    ///
+    /// The roster used to be whatever the welcome frame said and nothing else,
+    /// so an administrator watching the user list saw a snapshot from the moment
+    /// they connected: somebody joining, or being given a role, only appeared
+    /// after leaving the server and coming back.
+    /// </summary>
+    private void ApplyUser(User user)
+    {
+        if (string.IsNullOrEmpty(user.ClientUuid))
+        {
+            return;
+        }
+
+        var next = Users.Where(u => u.ClientUuid != user.ClientUuid).ToList();
+        next.Add(user);
+        next.Sort((a, b) => string.Compare(a.Username, b.Username, StringComparison.CurrentCultureIgnoreCase));
+        Users = next;
+    }
+
     private async Task RefreshRoomsAsync()
     {
         if (_client is null)
@@ -890,6 +928,14 @@ public sealed class ServerSession
                 // copy would drift after a move by a moderator.
                 var mine = Rooms.FirstOrDefault(r => r.Members.Any(m => m.ClientUuid == MyUuid));
                 MyRoomId = mine?.Id ?? "";
+
+                // The room tree carries every member with their current roles and
+                // room, so it doubles as a repair pass for the roster: anything an
+                // event missed is put right here.
+                foreach (var member in Rooms.SelectMany(r => r.Members))
+                {
+                    ApplyUser(member);
+                }
             }
         }
         catch (Exception)

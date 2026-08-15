@@ -349,6 +349,38 @@ checks every reply (it found a real backend bug), and `tamizsim seedbot` leaves 
 bot with a filled playlist behind for screenshots. `TAMIZCHAT_ADMIN_TAB` opens
 the admin panel straight onto a tab, next to `TAMIZCHAT_START_PAGE`.
 
+### The round of fixes after the first real use
+
+Six complaints, and what each turned out to be:
+
+1. **"A hardcoded bot that will not delete."** Not hardcoded: the row had been
+   deleted from the CLI panel without a reload, so it lived on in the running
+   server's memory, and delete refused on the missing row. Backend delete is
+   idempotent now.
+2. **"The bot never comes into the room and plays nothing."** Four real bugs,
+   all in the backend, all listed in `../../backend/MEMORY.md` — the biggest
+   being that the server's LiveKit token never carried `ingressAdmin`, so the
+   audio path had never worked at all. On this side, the Bots tab simply had no
+   transport: it can now send a bot to a room and play/stop/skip, and "Play
+   this" (which only selected a playlist) is gone.
+3. **"What is Own library, and why does the playlists card double?"** The
+   library row is removed. The doubling was two async renders racing: a dialog
+   button was wrapped in `Guarded`, which rendered, while the dialog's own save
+   rendered too. Dialog buttons now use `Opens` and never double-render, and
+   every async render carries a token so a stale one bails.
+4. **UX of uploading.** Uploads report progress per file with a count, one file
+   at a time, stopping at the first refusal and naming it. Playlists are
+   expanders that reveal their tracks — with a delete on each — instead of a
+   Tracks button.
+5. **Animations.** Entrance and reposition transitions on the lists, and a short
+   rise-and-fade on the section body when it is rebuilt.
+6. **Users tab was frozen, and role changes looked like nothing happened.** The
+   roster came from the welcome frame and was never updated — `ServerSession`
+   now patches it from `user.joined` / `user.left` / `user.updated` and repairs
+   it from the room tree on every refresh. Granting and revoking show a
+   confirmation, and revoking has its own "Take a role" menu: it was only ever
+   possible by clicking the role tag, which nobody found.
+
 **NEXT: F11, the installer.**
 
 ### What needs backend work
