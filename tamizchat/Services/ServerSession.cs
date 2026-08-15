@@ -541,6 +541,127 @@ public sealed class ServerSession
     public Task MoveBotAsync(string botId, string roomId) =>
         RequireClient().RequestAsync(MessageTypes.BotMove, new BotMove { BotId = botId, RoomId = roomId });
 
+    // --- bots an administrator configures ---
+    //
+    // A bot created from here has no folder path: the server gives it storage of
+    // its own and the music arrives by upload, below. A path typed by a client
+    // would be a path on somebody else's machine, and the server refuses one.
+
+    public Task<Bot?> CreateBotAsync(BotSpec spec) => BotRequestAsync(MessageTypes.BotCreate, spec);
+
+    public Task<Bot?> UpdateBotAsync(BotSpec spec) => BotRequestAsync(MessageTypes.BotUpdate, spec);
+
+    public Task DeleteBotAsync(string botId) =>
+        RequireClient().RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = botId });
+
+    /// <summary>The tracks a bot would play, in order.</summary>
+    public Task<IReadOnlyList<BotTrack>> GetBotQueueAsync(string botId) => TracksAsync(botId, "");
+
+    /// <summary>
+    /// The tracks of one playlist, which need not be the one playing — that is
+    /// how a playlist can be filled and tidied before it is switched to.
+    /// </summary>
+    public Task<IReadOnlyList<BotTrack>> GetPlaylistTracksAsync(string botId, string playlistId) =>
+        TracksAsync(botId, playlistId);
+
+    private async Task<IReadOnlyList<BotTrack>> TracksAsync(string botId, string playlistId)
+    {
+        var reply = await RequireClient()
+            .RequestAsync(MessageTypes.BotQueue, new BotRequest { BotId = botId, PlaylistId = playlistId })
+            .ConfigureAwait(true);
+
+        return TamizChatClient.Deserialize<BotQueueReply>(reply)?.Tracks ?? [];
+    }
+
+    public async Task<BotPlaylistList> GetPlaylistsAsync(string botId)
+    {
+        var reply = await RequireClient()
+            .RequestAsync(MessageTypes.BotPlaylistList, new BotRequest { BotId = botId })
+            .ConfigureAwait(true);
+
+        return TamizChatClient.Deserialize<BotPlaylistList>(reply) ?? new BotPlaylistList { BotId = botId };
+    }
+
+    public Task CreatePlaylistAsync(string botId, string name) =>
+        RequireClient().RequestAsync(
+            MessageTypes.BotPlaylistCreate,
+            new BotPlaylistSpec { BotId = botId, Name = name });
+
+    public Task RenamePlaylistAsync(string botId, string playlistId, string name) =>
+        RequireClient().RequestAsync(
+            MessageTypes.BotPlaylistRename,
+            new BotPlaylistSpec { BotId = botId, PlaylistId = playlistId, Name = name });
+
+    public Task DeletePlaylistAsync(string botId, string playlistId) =>
+        RequireClient().RequestAsync(
+            MessageTypes.BotPlaylistDelete,
+            new BotPlaylistSpec { BotId = botId, PlaylistId = playlistId });
+
+    /// <summary>
+    /// Picks what the bot plays from; an empty playlist id means its own library.
+    /// This stops playback server-side, so the reply is the state to draw.
+    /// </summary>
+    public Task<Bot?> SelectPlaylistAsync(string botId, string playlistId) =>
+        BotRequestAsync(
+            MessageTypes.BotPlaylistSelect,
+            new BotPlaylistSpec { BotId = botId, PlaylistId = playlistId });
+
+    public Task DeleteTrackAsync(string botId, string playlistId, int index) =>
+        RequireClient().RequestAsync(
+            MessageTypes.BotTrackDelete,
+            new BotTrackRef { BotId = botId, PlaylistId = playlistId, Index = index });
+
+    /// <summary>
+    /// Adds one track to a playlist: permission over the socket, bytes over HTTP
+    /// — the same two steps as a room file, and for the same reason. Everything
+    /// that can be refused is refused before a byte leaves here.
+    ///
+    /// Unlike a room file, the name matters: the server stores the track under
+    /// it and a listener sees it as the title.
+    /// </summary>
+    public async Task UploadTrackAsync(string botId, string playlistId, string path,
+        CancellationToken cancellationToken = default)
+    {
+        if (Server is null)
+        {
+            return;
+        }
+
+        var info = new FileInfo(path);
+
+        var reply = await RequireClient().RequestAsync(
+            MessageTypes.BotTrackUploadRequest,
+            new BotTrackUploadRequest
+            {
+                BotId = botId,
+                PlaylistId = playlistId,
+                Name = info.Name,
+                Size = info.Length,
+            },
+            cancellationToken).ConfigureAwait(true);
+
+        var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(reply)
+                     ?? throw new InvalidOperationException("the server did not return an upload ticket");
+
+        await using var stream = File.OpenRead(path);
+        using var content = new StreamContent(stream);
+        using var request = new HttpRequestMessage(HttpMethod.Post, Absolute(ticket.Url)) { Content = content };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
+
+        using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(true);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(true);
+            throw new InvalidOperationException($"upload refused ({(int)response.StatusCode}): {body}");
+        }
+    }
+
+    private async Task<Bot?> BotRequestAsync(string type, object payload)
+    {
+        var reply = await RequireClient().RequestAsync(type, payload).ConfigureAwait(true);
+        return TamizChatClient.Deserialize<Bot>(reply);
+    }
+
     /// <summary>Throws rather than silently doing nothing when there is no connection.</summary>
     private TamizChatClient RequireClient() =>
         _client ?? throw new InvalidOperationException("not connected to a server");

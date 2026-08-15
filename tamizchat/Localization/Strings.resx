@@ -742,4 +742,91 @@
   <data name="Admin.TagDesign" xml:space="preserve">
     <value>Tag design</value>
   </data>
+  <data name="Admin.Bots" xml:space="preserve">
+    <value>Bots</value>
+  </data>
+  <data name="Admin.NewBot" xml:space="preserve">
+    <value>New bot</value>
+  </data>
+  <data name="Admin.EditBot" xml:space="preserve">
+    <value>Edit bot</value>
+  </data>
+  <data name="Admin.NoBots" xml:space="preserve">
+    <value>This server has no bots yet.</value>
+  </data>
+  <data name="Admin.BotName" xml:space="preserve">
+    <value>Bot name</value>
+  </data>
+  <data name="Admin.BotColour" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="Admin.BotLoop" xml:space="preserve">
+    <value>Loop the queue</value>
+  </data>
+  <data name="Admin.BotShuffle" xml:space="preserve">
+    <value>Shuffle playback</value>
+  </data>
+  <data name="Admin.BotEnabled" xml:space="preserve">
+    <value>Enabled</value>
+  </data>
+  <data name="Admin.BotDisabled" xml:space="preserve">
+    <value>disabled</value>
+  </data>
+  <data name="Admin.BotStorageNote" xml:space="preserve">
+    <value>Music is uploaded into this bot's playlists from here. A bot created in the client has no folder on the server to point at.</value>
+  </data>
+  <data name="Admin.BotTracks" xml:space="preserve">
+    <value>{0} tracks</value>
+  </data>
+  <data name="Admin.BotPlaying" xml:space="preserve">
+    <value>playlist: {0}</value>
+  </data>
+  <data name="Admin.BotLibrary" xml:space="preserve">
+    <value>Own library</value>
+  </data>
+  <data name="Admin.BotState.idle" xml:space="preserve">
+    <value>not in a room</value>
+  </data>
+  <data name="Admin.BotState.stopped" xml:space="preserve">
+    <value>stopped</value>
+  </data>
+  <data name="Admin.BotState.playing" xml:space="preserve">
+    <value>playing</value>
+  </data>
+  <data name="Admin.DeleteBot" xml:space="preserve">
+    <value>Delete “{0}”?</value>
+  </data>
+  <data name="Admin.DeleteBotBody" xml:space="preserve">
+    <value>Its playlists and every track uploaded to it are deleted from the server as well. This cannot be undone.</value>
+  </data>
+  <data name="Admin.Playlists" xml:space="preserve">
+    <value>Playlists</value>
+  </data>
+  <data name="Admin.HidePlaylists" xml:space="preserve">
+    <value>Hide playlists</value>
+  </data>
+  <data name="Admin.NewPlaylist" xml:space="preserve">
+    <value>New playlist</value>
+  </data>
+  <data name="Admin.PlaylistName" xml:space="preserve">
+    <value>Playlist name</value>
+  </data>
+  <data name="Admin.UsePlaylist" xml:space="preserve">
+    <value>Play this</value>
+  </data>
+  <data name="Admin.Tracks" xml:space="preserve">
+    <value>Tracks</value>
+  </data>
+  <data name="Admin.HideTracks" xml:space="preserve">
+    <value>Hide tracks</value>
+  </data>
+  <data name="Admin.NoTracks" xml:space="preserve">
+    <value>This playlist is empty.</value>
+  </data>
+  <data name="Admin.AddTracks" xml:space="preserve">
+    <value>Add tracks</value>
+  </data>
+  <data name="Admin.Rename" xml:space="preserve">
+    <value>Rename</value>
+  </data>
 </root>

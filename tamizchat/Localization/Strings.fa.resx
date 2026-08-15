@@ -742,4 +742,91 @@
   <data name="Admin.TagDesign" xml:space="preserve">
     <value>طراحی تگ</value>
   </data>
+  <data name="Admin.Bots" xml:space="preserve">
+    <value>بات‌ها</value>
+  </data>
+  <data name="Admin.NewBot" xml:space="preserve">
+    <value>بات جدید</value>
+  </data>
+  <data name="Admin.EditBot" xml:space="preserve">
+    <value>ویرایش بات</value>
+  </data>
+  <data name="Admin.NoBots" xml:space="preserve">
+    <value>این سرور هنوز باتی ندارد.</value>
+  </data>
+  <data name="Admin.BotName" xml:space="preserve">
+    <value>نام بات</value>
+  </data>
+  <data name="Admin.BotColour" xml:space="preserve">
+    <value>رنگ</value>
+  </data>
+  <data name="Admin.BotLoop" xml:space="preserve">
+    <value>تکرار صف</value>
+  </data>
+  <data name="Admin.BotShuffle" xml:space="preserve">
+    <value>پخش تصادفی</value>
+  </data>
+  <data name="Admin.BotEnabled" xml:space="preserve">
+    <value>فعال</value>
+  </data>
+  <data name="Admin.BotDisabled" xml:space="preserve">
+    <value>غیرفعال</value>
+  </data>
+  <data name="Admin.BotStorageNote" xml:space="preserve">
+    <value>موزیک از همین‌جا در پلی‌لیست‌های این بات آپلود می‌شود. باتی که در کلاینت ساخته شود پوشه‌ای روی سرور ندارد که به آن اشاره کند.</value>
+  </data>
+  <data name="Admin.BotTracks" xml:space="preserve">
+    <value>{0} قطعه</value>
+  </data>
+  <data name="Admin.BotPlaying" xml:space="preserve">
+    <value>پلی‌لیست: {0}</value>
+  </data>
+  <data name="Admin.BotLibrary" xml:space="preserve">
+    <value>کتابخانه‌ی خودش</value>
+  </data>
+  <data name="Admin.BotState.idle" xml:space="preserve">
+    <value>در هیچ اتاقی نیست</value>
+  </data>
+  <data name="Admin.BotState.stopped" xml:space="preserve">
+    <value>متوقف</value>
+  </data>
+  <data name="Admin.BotState.playing" xml:space="preserve">
+    <value>در حال پخش</value>
+  </data>
+  <data name="Admin.DeleteBot" xml:space="preserve">
+    <value>«{0}» حذف شود؟</value>
+  </data>
+  <data name="Admin.DeleteBotBody" xml:space="preserve">
+    <value>پلی‌لیست‌ها و همه‌ی قطعه‌هایی که برایش آپلود شده هم از سرور پاک می‌شوند. این کار برگشت‌پذیر نیست.</value>
+  </data>
+  <data name="Admin.Playlists" xml:space="preserve">
+    <value>پلی‌لیست‌ها</value>
+  </data>
+  <data name="Admin.HidePlaylists" xml:space="preserve">
+    <value>بستن پلی‌لیست‌ها</value>
+  </data>
+  <data name="Admin.NewPlaylist" xml:space="preserve">
+    <value>پلی‌لیست جدید</value>
+  </data>
+  <data name="Admin.PlaylistName" xml:space="preserve">
+    <value>نام پلی‌لیست</value>
+  </data>
+  <data name="Admin.UsePlaylist" xml:space="preserve">
+    <value>همین پخش شود</value>
+  </data>
+  <data name="Admin.Tracks" xml:space="preserve">
+    <value>قطعه‌ها</value>
+  </data>
+  <data name="Admin.HideTracks" xml:space="preserve">
+    <value>بستن قطعه‌ها</value>
+  </data>
+  <data name="Admin.NoTracks" xml:space="preserve">
+    <value>این پلی‌لیست خالی است.</value>
+  </data>
+  <data name="Admin.AddTracks" xml:space="preserve">
+    <value>افزودن قطعه</value>
+  </data>
+  <data name="Admin.Rename" xml:space="preserve">
+    <value>تغییر نام</value>
+  </data>
 </root>

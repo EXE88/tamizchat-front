@@ -8,7 +8,7 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-15 — F0 to F10 and the post-F10 round done; in-client admin panel in progress
+Last updated: 2026-08-15 — F0 to F10, the post-F10 round and the in-client admin panel (including bots) done; next is F11, the installer
 
 ---
 
@@ -207,7 +207,7 @@ All eight of the post-F10 items are done.
 
 ---
 
-## IN PROGRESS: the in-client admin panel
+## The in-client admin panel — done
 
 Asked for **before** F11. The point is that a server's admin should never have to
 SSH in and open the CLI panel for everyday work — the common jobs move into the
@@ -292,12 +292,64 @@ the button or drop `DefaultButton` and put a normal themed button in the content
 - Disabling a bot stops it server-side, so the reply already carries the new
   state — do not assume the bot keeps playing.
 
-**NEXT: bots.**
-1. ~~Bot lifecycle over the wire~~ — done, see above.
-2. Playlists: named playlists per bot, upload tracks into a chosen one, pick
-   which plays. Reuse the "permission over the socket, bytes over HTTP" ticket
-   pattern rather than inventing a second upload path.
-3. The Bots tab in the admin panel.
+**DONE: playlists on the backend.** 235 backend tests green. What the client
+gets:
+
+- `bot.playlist.list` / `create` / `rename` / `delete` / `select`, plus
+  `bot.track.upload_request` / `bot.track.delete`, and `bot.queue` (which had
+  never been on the wire at all). All the playlist messages need `manage_bots`;
+  `bot.queue` is open to everyone, like `bot.list`.
+- **Uploading a track is the same two-step dance as a room file:** ask for a
+  ticket on the socket, `POST` the bytes to the ticket's `url`. The reply to the
+  POST is the bot's new state.
+- A track keeps its **file name** (unlike a room file, which is stored under a
+  random id) — the queue is the folder listing and the title is that name. Only
+  the accepted audio extensions are allowed and the server refuses anything else
+  at the ticket, so validate the extension in the file picker too.
+- The `Bot` shape now carries `playlist_id` / `playlist_name`; both are absent
+  when the bot plays its own library.
+- Selecting or deleting a playlist **stops playback** — do not draw the bot as
+  still playing after either.
+- New error codes: `playlist_not_found`, `playlist_name_taken`,
+  `playlist_limit_reached` (32 per bot), `track_not_audio`, `track_not_found`.
+
+**DONE: the Bots tab.** The bots work is finished. Verified against the running
+backend and screenshotted: the tab lists each bot with its colour dot and
+"not in a room · 3 tracks · playlist: Evening set", and opening one shows
+"Own library / Play this" above its playlists, each with Tracks · Add tracks ·
+Rename · Delete, and the track list underneath.
+
+- `BotDialog` has **no folder box** — a client cannot name a path on the
+  server's disk, and the server refuses one. The dialog says so.
+- The tab only appears when the user holds `manage_bots`; the palette moved from
+  `RoleTagDesigner` into `Colours.Palette` so a bot's colour picker offers
+  exactly the same set as a role's.
+- The playlists panel is **inserted under its own bot's card**, not appended to
+  the list, where it looked like it belonged to whichever bot was last.
+- Deleting a bot asks first. Nothing else on the page does, because nothing else
+  destroys uploaded files.
+- Uploads go one at a time and stop at the first refusal, so the message names
+  the file that failed instead of leaving twenty in doubt.
+- **The error line moved to the top of the page** (under the tabs). At the
+  bottom it was behind the floating bar and the inline chat strip — a refusal was
+  drawn and never seen, which is how a silently failing panel looked like a
+  no-op for a while.
+
+### Two things worth not relearning
+
+- **`dotnet build tamizchat.slnx` builds ARM64 on this machine**, so the x64 exe
+  under `bin/x64/...` stays stale and the app you launch is not the code you just
+  wrote. Build the app with `-p:Platform=x64`.
+- Driving the window with `SetCursorPos`/`mouse_event`: the **first click only
+  activates the window**. Call `SetForegroundWindow` first, or the first press is
+  swallowed and the button looks broken.
+
+New simulator modes: `tamizsim bots` walks the whole administrator flow and
+checks every reply (it found a real backend bug), and `tamizsim seedbot` leaves a
+bot with a filled playlist behind for screenshots. `TAMIZCHAT_ADMIN_TAB` opens
+the admin panel straight onto a tab, next to `TAMIZCHAT_START_PAGE`.
+
+**NEXT: F11, the installer.**
 
 ### What needs backend work
 

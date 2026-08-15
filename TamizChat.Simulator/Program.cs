@@ -10,6 +10,8 @@ using TamizChat.Core.Protocol;
 //   tamizsim run   [name] [room]       stay connected and behave like somebody who is there
 //   tamizsim paint [name] [room]       draw one streamed stroke on the room's board
 //   tamizsim file  [name] [room]       upload a small file into the room
+//   tamizsim bots  [name]              walk the whole bot admin flow and check what came back
+//   tamizsim seedbot [name]            leave one bot with a filled playlist behind, for screenshots
 //   tamizsim talk  [name] [room]       join the room's voice and publish a tone
 //   tamizsim listen [name] [room]      join the voice and PLAY what arrives, to test your mic
 //   tamizsim video [name] [room]       publish a moving test pattern, to test video with no webcam
@@ -456,6 +458,196 @@ if (mode == "file")
     await Task.Delay(800);
     Console.WriteLine(ok ? "file OK" : "file FAILED");
     return ok ? 0 : 1;
+}
+
+if (mode == "seedbot")
+{
+    // Leaves a bot with a playlist and a few tracks on the server and exits, so
+    // the client's Bots tab has something real to show. Nothing here is checked
+    // — `bots` is the test; this is the fixture.
+    var bot = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+        MessageTypes.BotCreate,
+        new BotSpec { Name = "Radio", Color = "#1abc9c", Loop = true }))!;
+
+    var list = TamizChatClient.Deserialize<BotPlaylist>(await client.RequestAsync(
+        MessageTypes.BotPlaylistCreate,
+        new BotPlaylistSpec { BotId = bot.Id, Name = "Evening set" }))!;
+
+    foreach (var title in new[] { "01 opening.mp3", "02 middle eight.mp3", "03 closing.mp3" })
+    {
+        var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.mp3");
+        await File.WriteAllTextAsync(temp, $"placeholder for {title}\n");
+
+        var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(await client.RequestAsync(
+            MessageTypes.BotTrackUploadRequest,
+            new BotTrackUploadRequest
+            {
+                BotId = bot.Id,
+                PlaylistId = list.Id,
+                Name = title,
+                Size = new FileInfo(temp).Length,
+            }))!;
+
+        using (var http = new HttpClient())
+        using (var body = new StreamContent(File.OpenRead(temp)))
+        using (var post = new HttpRequestMessage(HttpMethod.Post, $"{httpUrl}{ticket.Url}") { Content = body })
+        {
+            post.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
+            using var response = await http.SendAsync(post);
+            Console.WriteLine($"  {title,-24} {(int)response.StatusCode}");
+        }
+
+        File.Delete(temp);
+    }
+
+    await client.RequestAsync(
+        MessageTypes.BotPlaylistSelect,
+        new BotPlaylistSpec { BotId = bot.Id, PlaylistId = list.Id });
+
+    Console.WriteLine($"seeded {bot.Name} with {list.Name}");
+    return 0;
+}
+
+if (mode == "bots")
+{
+    // The whole administrator flow for bots, end to end against the real
+    // server: create one, give it a playlist, upload a track into it, switch to
+    // it, look at the queue, then take it all apart again. Every step checks
+    // what came back rather than only that nothing threw — a server that
+    // accepted the frame and did nothing would otherwise look like success.
+    //
+    // Needs a client_uuid holding manage_bots; the identity line above prints
+    // which one this name maps to.
+    var failures = 0;
+
+    void Check(string what, bool ok, string detail = "")
+    {
+        Console.WriteLine($"  {(ok ? "OK  " : "FAIL")} {what,-34} {detail}");
+        if (!ok)
+        {
+            failures++;
+        }
+    }
+
+    var botName = $"Sim DJ {DateTime.Now:HHmmss}";
+
+    var created = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+        MessageTypes.BotCreate,
+        new BotSpec { Name = botName, Color = "#f39c12", Shuffle = true }))!;
+
+    Check("bot created", created.Id.Length > 0 && created.Name == botName, created.Id);
+    Check("starts idle and empty",
+        created.State == "idle" && created.TrackCount == 0 && created.PlaylistId.Length == 0);
+    Check("spec applied", created.Shuffle && created.Color == "#f39c12");
+
+    var playlist = TamizChatClient.Deserialize<BotPlaylist>(await client.RequestAsync(
+        MessageTypes.BotPlaylistCreate,
+        new BotPlaylistSpec { BotId = created.Id, Name = "Simulator set" }))!;
+
+    Check("playlist created", playlist.Id.Length > 0 && playlist.Name == "Simulator set", playlist.Id);
+
+    // A file that is not audio has to be refused before any bytes move.
+    var refused = "";
+    try
+    {
+        await client.RequestAsync(
+            MessageTypes.BotTrackUploadRequest,
+            new BotTrackUploadRequest { BotId = created.Id, PlaylistId = playlist.Id, Name = "notes.txt" });
+    }
+    catch (Exception ex)
+    {
+        refused = ex.Message;
+    }
+
+    Check("a .txt is refused", refused.Length > 0, refused);
+
+    var temp = Path.Combine(Path.GetTempPath(), $"tamizsim-{Guid.NewGuid():N}.mp3");
+    await File.WriteAllTextAsync(temp, "not really an mp3, but the server never decodes it\n");
+
+    var ticket = TamizChatClient.Deserialize<BotTrackUploadTicket>(await client.RequestAsync(
+        MessageTypes.BotTrackUploadRequest,
+        new BotTrackUploadRequest
+        {
+            BotId = created.Id,
+            PlaylistId = playlist.Id,
+            Name = "simulator track.mp3",
+            Size = new FileInfo(temp).Length,
+        }))!;
+
+    Bot? uploaded = null;
+    {
+        using var http = new HttpClient();
+        using var body = new StreamContent(File.OpenRead(temp));
+        using var post = new HttpRequestMessage(HttpMethod.Post, $"{httpUrl}{ticket.Url}") { Content = body };
+        post.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
+
+        using var response = await http.SendAsync(post);
+        var replyBody = await response.Content.ReadAsStringAsync();
+        Check("track uploaded", response.IsSuccessStatusCode,
+            $"{(int)response.StatusCode} {(response.IsSuccessStatusCode ? "" : replyBody)}");
+        if (response.IsSuccessStatusCode)
+        {
+            // The HTTP reply is the bot itself, not an envelope — the upload
+            // never went through the socket.
+            uploaded = System.Text.Json.JsonSerializer.Deserialize<Bot>(replyBody);
+        }
+    }
+
+    File.Delete(temp);
+
+    // The bot is still on its own library, so the queue must not have changed.
+    Check("unselected playlist leaves the queue alone", uploaded?.TrackCount == 0,
+        $"track_count={uploaded?.TrackCount}");
+
+    var listed = TamizChatClient.Deserialize<BotPlaylistList>(await client.RequestAsync(
+        MessageTypes.BotPlaylistList, new BotRequest { BotId = created.Id }))!;
+
+    Check("playlist holds the track",
+        listed.Playlists.Count == 1 && listed.Playlists[0].TrackCount == 1,
+        $"{listed.Playlists.Count} playlists");
+
+    var tracks = TamizChatClient.Deserialize<BotQueueReply>(await client.RequestAsync(
+        MessageTypes.BotQueue, new BotRequest { BotId = created.Id, PlaylistId = playlist.Id }))!;
+
+    Check("an unplayed playlist can be read",
+        tracks.Tracks.Count == 1 && tracks.Tracks[0].Title == "simulator track",
+        tracks.Tracks.Count > 0 ? tracks.Tracks[0].Title : "");
+
+    var selected = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+        MessageTypes.BotPlaylistSelect,
+        new BotPlaylistSpec { BotId = created.Id, PlaylistId = playlist.Id }))!;
+
+    Check("playlist selected",
+        selected.PlaylistId == playlist.Id && selected.PlaylistName == "Simulator set",
+        selected.PlaylistName);
+    Check("queue follows the playlist", selected.TrackCount == 1, $"track_count={selected.TrackCount}");
+
+    var emptied = TamizChatClient.Deserialize<Bot>(await client.RequestAsync(
+        MessageTypes.BotTrackDelete,
+        new BotTrackRef { BotId = created.Id, PlaylistId = playlist.Id, Index = 0 }))!;
+
+    Check("track deleted", emptied.TrackCount == 0, $"track_count={emptied.TrackCount}");
+
+    await client.RequestAsync(
+        MessageTypes.BotPlaylistDelete,
+        new BotPlaylistSpec { BotId = created.Id, PlaylistId = playlist.Id });
+
+    var afterDelete = TamizChatClient.Deserialize<BotPlaylistList>(await client.RequestAsync(
+        MessageTypes.BotPlaylistList, new BotRequest { BotId = created.Id }))!;
+
+    Check("playlist gone and bot back on its library",
+        afterDelete.Playlists.Count == 0 && afterDelete.Active.Length == 0);
+
+    await client.RequestAsync(MessageTypes.BotDelete, new BotRef { BotId = created.Id });
+
+    var remaining = TamizChatClient.Deserialize<BotListReply>(
+        await client.RequestAsync(MessageTypes.BotList))!;
+
+    Check("bot deleted", remaining.Bots.All(b => b.Id != created.Id),
+        $"{remaining.Bots.Count} bots left");
+
+    Console.WriteLine(failures == 0 ? "bots OK" : $"bots FAILED ({failures})");
+    return failures == 0 ? 0 : 1;
 }
 
 Console.WriteLine("running — press Ctrl+C to leave");

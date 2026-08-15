@@ -55,6 +55,24 @@ public static class MessageTypes
     public const string BotList = "bot.list";
     public const string BotControl = "bot.control";
     public const string BotMove = "bot.move";
+    public const string BotCreate = "bot.create";
+    public const string BotUpdate = "bot.update";
+    public const string BotDelete = "bot.delete";
+    public const string BotQueue = "bot.queue";
+
+    /// <summary>One bot changed, or appeared: an unknown id means "add it".</summary>
+    public const string BotState = "bot.state";
+    public const string BotRemoved = "bot.removed";
+
+    public const string BotPlaylistList = "bot.playlist.list";
+    public const string BotPlaylistCreate = "bot.playlist.create";
+    public const string BotPlaylistRename = "bot.playlist.rename";
+    public const string BotPlaylistDelete = "bot.playlist.delete";
+    public const string BotPlaylistSelect = "bot.playlist.select";
+
+    public const string BotTrackUploadRequest = "bot.track.upload_request";
+    public const string BotTrackUploadTicket = "bot.track.upload_ticket";
+    public const string BotTrackDelete = "bot.track.delete";
 
     /// <summary>Sent only to the user whose roles changed.</summary>
     public const string UserRolesChanged = "user.roles_changed";

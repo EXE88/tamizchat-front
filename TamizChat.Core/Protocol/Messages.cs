@@ -769,6 +769,10 @@ public sealed class Bot
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = "music";
 
+    /// <summary>How the client draws the bot; the server never interprets it.</summary>
+    [JsonPropertyName("color")]
+    public string Color { get; set; } = "";
+
     [JsonPropertyName("room_id")]
     public string RoomId { get; set; } = "";
 
@@ -781,6 +785,13 @@ public sealed class Bot
 
     [JsonPropertyName("track_count")]
     public int TrackCount { get; set; }
+
+    /// <summary>The playlist the bot plays from; empty means its own library.</summary>
+    [JsonPropertyName("playlist_id")]
+    public string PlaylistId { get; set; } = "";
+
+    [JsonPropertyName("playlist_name")]
+    public string PlaylistName { get; set; } = "";
 
     [JsonPropertyName("loop")]
     public bool Loop { get; set; }
@@ -830,4 +841,144 @@ public sealed class BotMove
 
     [JsonPropertyName("room_id")]
     public string RoomId { get; set; } = "";
+}
+
+/// <summary>`bot.create` and `bot.update`. A null field is left unchanged.</summary>
+public sealed class BotSpec
+{
+    [JsonPropertyName("bot_id")]
+    public string? BotId { get; set; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("color")]
+    public string? Color { get; set; }
+
+    [JsonPropertyName("loop")]
+    public bool? Loop { get; set; }
+
+    [JsonPropertyName("shuffle")]
+    public bool? Shuffle { get; set; }
+
+    [JsonPropertyName("enabled")]
+    public bool? Enabled { get; set; }
+}
+
+/// <summary>`bot.delete`, and the `bot.removed` event.</summary>
+public sealed class BotRef
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+}
+
+/// <summary>
+/// `bot.queue` and `bot.playlist.list`. `bot.queue` also takes a playlist id,
+/// to look inside a playlist the bot is not currently playing.
+/// </summary>
+public sealed class BotRequest
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("playlist_id")]
+    public string PlaylistId { get; set; } = "";
+}
+
+/// <summary>The reply to `bot.queue`.</summary>
+public sealed class BotQueueReply
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("tracks")]
+    public List<BotTrack> Tracks { get; set; } = [];
+}
+
+/// <summary>A named group of tracks belonging to one bot.</summary>
+public sealed class BotPlaylist
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = "";
+
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("track_count")]
+    public int TrackCount { get; set; }
+}
+
+/// <summary>The reply to `bot.playlist.list`.</summary>
+public sealed class BotPlaylistList
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("playlists")]
+    public List<BotPlaylist> Playlists { get; set; } = [];
+
+    /// <summary>Which one plays; empty means the bot's own library.</summary>
+    [JsonPropertyName("active_playlist_id")]
+    public string Active { get; set; } = "";
+}
+
+/// <summary>Creates, renames, deletes or selects a playlist.</summary>
+public sealed class BotPlaylistSpec
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("playlist_id")]
+    public string PlaylistId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+}
+
+/// <summary>`bot.track.upload_request`.</summary>
+public sealed class BotTrackUploadRequest
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("playlist_id")]
+    public string PlaylistId { get; set; } = "";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+
+    [JsonPropertyName("size")]
+    public long Size { get; set; }
+}
+
+/// <summary>Single-use permission to POST the bytes of one track.</summary>
+public sealed class BotTrackUploadTicket
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("token")]
+    public string Token { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+
+    [JsonPropertyName("max_size")]
+    public long MaxSize { get; set; }
+}
+
+/// <summary>`bot.track.delete` — a track by its position in the playlist.</summary>
+public sealed class BotTrackRef
+{
+    [JsonPropertyName("bot_id")]
+    public string BotId { get; set; } = "";
+
+    [JsonPropertyName("playlist_id")]
+    public string PlaylistId { get; set; } = "";
+
+    [JsonPropertyName("index")]
+    public int Index { get; set; }
 }
