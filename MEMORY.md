@@ -487,7 +487,36 @@ Measured after the fix, with a watcher printing every `media.state`: joining
 reports `mic=true` exactly once, and six users churning through the room during
 the connect window produced no further report from this client at all.
 
-**NEXT: F11, the installer.**
+### F11 — icon, release build and installer (done)
+
+- `Assetsppicon.ico` is the app icon, set through `ApplicationIcon` in the
+  csproj. An unpackaged app has no MSIX manifest to take one from, so it is
+  compiled into the exe.
+- **Ship the Release *build* folder, never `dotnet publish`.** Publish drops the
+  compiled XAML (`.xbf`) and the app's `.pri`; the published exe started and died
+  with a `XamlParseException`, and `crash.log` — added the day before — is what
+  said so in one line. The Release build folder is already self-contained: 450
+  files, 263 MB, runs on a machine with no .NET and no Windows App SDK.
+- `installer/TamizChat.iss` + `installer/build.ps1` live beside `front/` and
+  `backend/`, with the staged app in `dist/TamizChat-win-x64`. Per-user install
+  by default, so no administrator prompt; uninstall *asks* before removing
+  `%LOCALAPPDATA%\TamizChat`.
+- Inno Setup ships no Persian translation, so the language entry is guarded by
+  `#if FileExists(...)` — otherwise the script fails to compile on a clean
+  machine.
+
+### Documentation
+
+`README.md` and `README.fa.md` in both repositories, plus an `ABOUT.md` each for
+the GitHub sidebar. The Persian files wrap prose in `<div dir="rtl">` and leave
+code blocks outside it, so commands stay left-to-right and copy correctly.
+
+This is the deliberate exception to [[tamizchat-language-english]]: that rule is
+about anything a terminal renders — the panel, wire errors, code comments — and
+a GitHub README is neither.
+
+**NEXT: nothing outstanding. The deferred list is at the end of the backend's
+`docs/ROADMAP.md`.**
 
 ### What needs backend work
 
