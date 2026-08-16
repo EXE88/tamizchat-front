@@ -892,4 +892,10 @@
   <data name="Admin.ConvertingOf" xml:space="preserve">
     <value>در حال تبدیل {0} ({1} از {2})…</value>
   </data>
+  <data name="Voice.TheirMicIsOff" xml:space="preserve">
+    <value>{0} — میکروفون بسته</value>
+  </data>
+  <data name="Voice.TheyAreDeafened" xml:space="preserve">
+    <value>{0} — اسپیکر خاموش، صدایی نمی‌شنود</value>
+  </data>
 </root>

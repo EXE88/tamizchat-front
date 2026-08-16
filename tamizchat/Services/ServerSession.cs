@@ -367,10 +367,11 @@ public sealed class ServerSession
     /// the microphone is really open; what we are *allowed* to publish is decided
     /// server-side and enforced by LiveKit.
     /// </summary>
-    public Task SetMediaStateAsync(bool mic, bool cam = false, bool screen = false) =>
+    public Task SetMediaStateAsync(bool mic, bool cam = false, bool screen = false, bool deaf = false) =>
         _client is null
             ? Task.CompletedTask
-            : _client.SendAsync(MessageTypes.MediaSetState, new MediaSetState { Mic = mic, Cam = cam, Screen = screen });
+            : _client.SendAsync(MessageTypes.MediaSetState,
+                new MediaSetState { Mic = mic, Cam = cam, Screen = screen, Deaf = deaf });
 
     // --- paint ---
 
@@ -897,7 +898,16 @@ public sealed class ServerSession
             case MessageTypes.MediaState:
                 if (e.As<MediaStateEvent>() is { } media)
                 {
-                    _ui.TryEnqueue(() => MediaStateChanged?.Invoke(this, media));
+                    // Kept on the user as well as announced: the room tree draws
+                    // its icons from the roster, and a state change has to survive
+                    // the next redraw rather than only reaching whoever was
+                    // listening for the event.
+                    _ui.TryEnqueue(() =>
+                    {
+                        ApplyMedia(media.ClientUuid, media.State);
+                        MediaStateChanged?.Invoke(this, media);
+                        Raise();
+                    });
                 }
 
                 break;
@@ -983,6 +993,24 @@ public sealed class ServerSession
         next.Add(user);
         next.Sort((a, b) => string.Compare(a.Username, b.Username, StringComparison.CurrentCultureIgnoreCase));
         Users = next;
+    }
+
+    /// <summary>Records what one user has switched on.</summary>
+    private void ApplyMedia(string clientUuid, MediaSetState state)
+    {
+        var user = Users.FirstOrDefault(u => u.ClientUuid == clientUuid);
+        if (user is not null)
+        {
+            user.Media = state;
+        }
+
+        // The room tree holds its own copies of the members, and that is what
+        // the grid draws from.
+        foreach (var member in Rooms.SelectMany(r => r.Members)
+                     .Where(m => m.ClientUuid == clientUuid))
+        {
+            member.Media = state;
+        }
     }
 
     private async Task RefreshRoomsAsync()

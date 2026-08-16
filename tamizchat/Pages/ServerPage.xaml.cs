@@ -89,6 +89,11 @@ public sealed partial class ServerPage : Page
         {
             tile.SetSpeaking(voice.Speakers);
         }
+
+        // This user's own badge comes from their own switches, so it has to be
+        // redrawn here rather than waiting for the server to echo the change
+        // back — pressing Mute should mark the avatar at once.
+        Render();
     }
 
     /// <summary>

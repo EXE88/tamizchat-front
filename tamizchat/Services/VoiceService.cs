@@ -18,6 +18,9 @@ public sealed class VoiceService
 {
     private readonly DispatcherQueue _ui = DispatcherQueue.GetForCurrentThread();
     private readonly MicrophoneCapture _microphone = new();
+
+    /// <summary>Serializes joining and leaving; see JoinAsync for why.</summary>
+    private readonly SemaphoreSlim _joining = new(1, 1);
     private readonly SpeakerPlayback _speakers = new();
 
     private MediaSession? _session;
@@ -93,6 +96,30 @@ public sealed class VoiceService
     /// </summary>
     public async Task JoinAsync()
     {
+        // One join at a time.
+        //
+        // This is driven by every change to the room tree, which now includes
+        // somebody else opening their microphone — so several calls can be in
+        // flight at once. Without the gate a second call would arrive while the
+        // first was still connecting, see IsConnected as false because _session
+        // is only assigned at the end, tear down the half-built session and
+        // start again. What that looked like was a microphone that appeared open
+        // in the bottom bar while the room saw it closed, and audio that stopped
+        // going out until it was toggled by hand.
+        await _joining.WaitAsync().ConfigureAwait(true);
+
+        try
+        {
+            await JoinCoreAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            _joining.Release();
+        }
+    }
+
+    private async Task JoinCoreAsync()
+    {
         var session = ServerSession.Instance;
         if (string.IsNullOrEmpty(session.MyRoomId))
         {
@@ -104,7 +131,7 @@ public sealed class VoiceService
             return;
         }
 
-        await LeaveAsync().ConfigureAwait(true);
+        await LeaveCoreAsync().ConfigureAwait(true);
 
         var credentials = await session.GetMediaTokenAsync().ConfigureAwait(true);
         if (credentials is null || string.IsNullOrEmpty(credentials.Token))
@@ -143,6 +170,13 @@ public sealed class VoiceService
         if (CanSpeak)
         {
             await SetMutedAsync(false).ConfigureAwait(true);
+        }
+        else
+        {
+            // Still told, even when nothing is switched on. Otherwise the room
+            // keeps whatever it last heard about this user, and somebody who may
+            // not speak at all would be drawn however they were before.
+            await ReportStateAsync().ConfigureAwait(true);
         }
 
         // Dev-only, alongside TAMIZCHAT_AUTOJOIN: turns the camera or screen on
@@ -204,10 +238,32 @@ public sealed class VoiceService
             _speakers.Start();
         }
 
+        // The room is told, the same way it is told about the microphone: a
+        // person whose speakers are off cannot hear anyone talking to them, and
+        // that is worth seeing before somebody starts talking.
+        _ = ReportStateAsync();
         Raise();
     }
 
     public async Task LeaveAsync()
+    {
+        await _joining.WaitAsync().ConfigureAwait(true);
+
+        try
+        {
+            await LeaveCoreAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            _joining.Release();
+        }
+    }
+
+    /// <summary>
+    /// Leaves without taking the gate, for callers that already hold it.
+    /// Taking it twice on the same thread would deadlock.
+    /// </summary>
+    private async Task LeaveCoreAsync()
     {
         var media = _session;
         _session = null;
@@ -281,7 +337,7 @@ public sealed class VoiceService
         _session.SetMuted(muted);
 
         // Tell everyone else, so the room tree can show the microphone icon.
-        await ServerSession.Instance.SetMediaStateAsync(!muted).ConfigureAwait(true);
+        await ReportStateAsync().ConfigureAwait(true);
         Raise();
     }
 
@@ -422,10 +478,20 @@ public sealed class VoiceService
         }
     }
 
+    /// <summary>
+    /// Tells the room what this user has switched on.
+    ///
+    /// The whole state goes every time rather than the one thing that changed:
+    /// there is a single message for it, and sending all of it is how the icons
+    /// above somebody's name can never disagree with each other. Deafened is in
+    /// here too — a person who has turned their speakers off cannot hear anyone
+    /// talking to them, and the room deserves to know before somebody tries.
+    /// </summary>
     private Task ReportStateAsync()
     {
         Raise();
-        return ServerSession.Instance.SetMediaStateAsync(!IsMuted, IsCameraOn, IsScreenSharing);
+        return ServerSession.Instance.SetMediaStateAsync(
+            !IsMuted, IsCameraOn, IsScreenSharing, IsDeafened);
     }
 
     /// <summary>

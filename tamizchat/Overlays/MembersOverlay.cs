@@ -148,6 +148,11 @@ public sealed class MembersOverlay : OverlayWindow
 
         public void Update(User member)
         {
+            // The same badges as the room grid: the overlay is what somebody
+            // watches while a game is in front of them, so it is the place a
+            // closed microphone matters most.
+            var (micOff, deafened) = MediaState.Of(member);
+            Avatar.SetSelfMuted(micOff, deafened, member.Username);
             Name.Text = member.Username;
             Avatar.SetMuted(member.Muted);
         }

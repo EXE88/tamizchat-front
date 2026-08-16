@@ -38,6 +38,14 @@ public sealed class User
     [JsonPropertyName("muted")]
     public bool Muted { get; set; }
 
+    /// <summary>
+    /// What they have switched on, as their own client reports it. Present in
+    /// the room tree as well as in events, so somebody joining a room sees the
+    /// microphone icons immediately rather than after the next change.
+    /// </summary>
+    [JsonPropertyName("media")]
+    public MediaSetState Media { get; set; } = new();
+
     /// <summary>The circle avatar's letter. Users have no profile pictures.</summary>
     public string Initial => string.IsNullOrWhiteSpace(Username)
         ? "?"
@@ -482,6 +490,10 @@ public sealed class MediaSetState
 
     [JsonPropertyName("screen")]
     public bool Screen { get; set; }
+
+    /// <summary>Speakers off: they are hearing nobody.</summary>
+    [JsonPropertyName("deaf")]
+    public bool Deaf { get; set; }
 }
 
 /// <summary>

@@ -267,6 +267,11 @@ internal sealed class MemberCell : OccupantCell
         _member = member;
         _name.Text = member.Username;
         _avatar.SetMuted(member.Muted);
+
+        // Their own switches, which are a different thing from a moderator's
+        // mute: that dims the avatar, this puts a badge on it.
+        var (micOff, deafened) = MediaState.Of(member);
+        _avatar.SetSelfMuted(micOff, deafened, member.Username);
         RenderTags(member);
     }
 

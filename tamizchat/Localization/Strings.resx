@@ -892,4 +892,10 @@
   <data name="Admin.ConvertingOf" xml:space="preserve">
     <value>Converting {0} ({1} of {2})…</value>
   </data>
+  <data name="Voice.TheirMicIsOff" xml:space="preserve">
+    <value>{0} — microphone off</value>
+  </data>
+  <data name="Voice.TheyAreDeafened" xml:space="preserve">
+    <value>{0} — speakers off, hearing nobody</value>
+  </data>
 </root>

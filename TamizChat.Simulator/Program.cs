@@ -828,6 +828,20 @@ if (mode == "bots")
     return failures == 0 ? 0 : 1;
 }
 
+// TAMIZSIM_MEDIA lets a fake user sit in a room with their microphone closed or
+// their speakers off, which is the only way to see the badges the room draws for
+// somebody else's state.
+if (Environment.GetEnvironmentVariable("TAMIZSIM_MEDIA") is { } declared)
+{
+    await client.SendAsync(MessageTypes.MediaSetState, new MediaSetState
+    {
+        Mic = declared.Contains("mic", StringComparison.OrdinalIgnoreCase),
+        Deaf = declared.Contains("deaf", StringComparison.OrdinalIgnoreCase),
+    });
+
+    Console.WriteLine($"media    declared {declared}");
+}
+
 Console.WriteLine("running — press Ctrl+C to leave");
 await client.SendAsync(MessageTypes.ChatSend, new ChatSend { Text = $"{username} joined from the simulator" });
 
@@ -887,6 +901,15 @@ static void Report(ServerEventArgs e)
 
         case MessageTypes.ServerNotice:
             Console.WriteLine($"[notice] {e.Data}");
+            break;
+
+        // Timestamped, because the question this answers is *when* somebody's
+        // microphone was reported closed, and by whom.
+        case "media.state":
+            var media = e.As<MediaStateEvent>();
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [media] {media?.ClientUuid[..8]} " +
+                              $"mic={media?.State.Mic} deaf={media?.State.Deaf} " +
+                              $"cam={media?.State.Cam} screen={media?.State.Screen}");
             break;
     }
 }

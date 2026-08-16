@@ -438,6 +438,55 @@ happened during a long upload, leaving nothing to go on. It hooks the XAML
 handler, the AppDomain one and unobserved tasks, and appends to `crash.log` next
 to the executable. The upload path also writes anything it catches there.
 
+### Microphone and speaker badges
+
+Somebody who has closed their microphone, or switched their speakers off, now
+carries a badge on their avatar — in the room grid and in the members overlay,
+which share `AvatarView` and so share the badge.
+
+- The wire already had `media.set_state`; **`deaf` was added to it** for
+  speakers-off, and it rides on `user.media` as well, so joining a room shows
+  who is muted at once rather than after the next change.
+- The whole state is sent every time rather than the field that changed. There
+  is one message for it, and sending all of it is why the icons can never
+  disagree with each other.
+- Deafened wins over microphone-off when both are true: there is room for one
+  glyph, and "cannot hear you at all" is the more useful of the two.
+- **Verify Segoe MDL2 glyphs by eye, never by name.** `` sounds like a
+  muted microphone and draws a muted *speaker*, so both badges came out
+  identical. The pair that actually differ are `` (speaker, crossed) and
+  `` (microphone, crossed).
+- This is a different thing from `user.muted`, which is a moderator's mute and
+  dims the whole avatar instead.
+
+#### The badge that appeared when somebody else started talking
+
+Reported as: joining voice showed a muted badge that then vanished, and later —
+when another user *published* audio — the badge came back, this user's audio
+stopped going out, and the bottom bar still said the microphone was open.
+Toggling mute by hand fixed it.
+
+`JoinAsync` had no guard against being entered twice. It is driven by every
+change to the room tree, and adding the badges made that far more frequent
+(`media.state` now raises `Changed`). A second call arriving while the first was
+still connecting saw `IsConnected` as false — `_session` is only assigned at the
+end — tore down the half-built session and started again. The survivor was a
+session whose microphone had been published by the run that was disposed.
+
+Two changes, and both are needed:
+
+- **`JoinAsync` and `LeaveAsync` are serialized** by a semaphore, with the
+  "already in the right room" check inside it. `LeaveCoreAsync` exists because a
+  join calls leave while holding the gate, and taking it twice would deadlock.
+- **This user's own badge reads their own switches**, through
+  `Services/MediaState.Of` — not the server's copy of them. The bottom bar reads
+  the local switch directly, so anything else can drift into a badge saying
+  "muted" beside a bar saying "live", which teaches people to trust neither.
+
+Measured after the fix, with a watcher printing every `media.state`: joining
+reports `mic=true` exactly once, and six users churning through the room during
+the connect window produced no further report from this client at all.
+
 **NEXT: F11, the installer.**
 
 ### What needs backend work
