@@ -103,6 +103,14 @@ public static class ShellItems
         // ShellItems.InServerFor.
         new() { Key = "admin", Glyph = GlyphShield, LabelKey = "Nav.AdminPanel", Page = typeof(AdminPage) },
 
+        // The same Settings page as outside, reached without leaving.
+        //
+        // It was missing here, and the only route to it was Disconnect, change
+        // one thing, reconnect, find your room again — for something as ordinary
+        // as picking a different microphone. Nothing about the settings page
+        // needs the session to be down.
+        new() { Key = "settings", Glyph = GlyphSettings, LabelKey = "Nav.Settings", Page = typeof(SettingsPage) },
+
         new()
         {
             Key = "disconnect",
@@ -136,8 +144,17 @@ public static class ShellItems
     private static readonly IReadOnlyList<NavBarItem> WithoutAdmin =
         [.. InServer.Where(i => i.Key != "admin")];
 
-    /// <summary>Pages that mean the shell is inside a server.</summary>
+    /// <summary>
+    /// Pages that mean the shell is inside a server.
+    ///
+    /// Settings is the one page in both sets, so the page type alone cannot
+    /// answer for it and the session has to. Keeping the in-server bar while
+    /// Settings is open is the point: the microphone and speaker toggles live
+    /// there, and dropping to the short bar would take them away at exactly the
+    /// moment somebody is fiddling with their audio.
+    /// </summary>
     public static bool IsInServer(Type? page) =>
         page == typeof(ServerPage) || page == typeof(ChatPage) || page == typeof(PaintPage)
-        || page == typeof(AdminPage);
+        || page == typeof(AdminPage)
+        || (page == typeof(SettingsPage) && ServerSession.Instance.IsConnected);
 }

@@ -96,6 +96,13 @@ public static class MessageTypes
 
     public const string FileUploadRequest = "file.upload_request";
     public const string FileUploadTicket = "file.upload_ticket";
+
+    /// <summary>Profile pictures: a ticket, then the bytes over HTTP.</summary>
+    public const string AvatarUploadRequest = "avatar.upload_request";
+
+    public const string AvatarUploadTicket = "avatar.upload_ticket";
+
+    public const string AvatarClear = "avatar.clear";
     public const string FileDownloadToken = "file.download_token";
     public const string FileDownload = "file.download";
 

@@ -21,11 +21,11 @@ public static class BotMenu
         target.RightTapped += (_, e) =>
         {
             e.Handled = true;
-            Build(bot()).ShowAt(target, new FlyoutShowOptions { Position = e.GetPosition(target) });
+            Build(target, bot()).ShowAt(target, new FlyoutShowOptions { Position = e.GetPosition(target) });
         };
     }
 
-    private static MenuFlyout Build(Bot bot)
+    private static MenuFlyout Build(FrameworkElement anchor, Bot bot)
     {
         var session = ServerSession.Instance;
         var menu = new MenuFlyout();
@@ -40,6 +40,15 @@ public static class BotMenu
                 IsEnabled = false,
             });
         }
+
+        menu.Items.Add(new MenuFlyoutSeparator());
+
+        // Volume comes before the permission check on purpose: turning the music
+        // down is not moderation. It changes nothing for anybody else — it is
+        // this listener's own mixer — so it belongs to everyone in the room, and
+        // being unable to do it for the one participant that plays records at
+        // full length was the loudest complaint about bots.
+        menu.Items.Add(VolumeItem(anchor, bot));
 
         if (!session.Can("control_bots"))
         {
@@ -106,6 +115,52 @@ public static class BotMenu
         menu.Items.Add(leave);
 
         return menu;
+    }
+
+    /// <summary>
+    /// How loud this bot is, for this listener only.
+    ///
+    /// It works exactly like a person's volume and for the same reason: a bot is
+    /// a LiveKit participant like anybody else, its identity is
+    /// <c>bot-&lt;id&gt;</c>, and that is already the key the mixer sums under.
+    /// So this is the same slider, pointed at the same place, and it survives a
+    /// restart the same way.
+    ///
+    /// A slider needs a flyout of its own — a MenuFlyoutItem takes text and
+    /// nothing else — which is one more click and a real continuous control
+    /// rather than a list of percentages to hunt through by ear.
+    /// </summary>
+    private static MenuFlyoutItemBase VolumeItem(FrameworkElement anchor, Bot bot)
+    {
+        var identity = MemberGrid.BotIdentity(bot);
+        var item = new MenuFlyoutItem { Text = Loc.Get("Bot.Volume") };
+
+        item.Click += (_, _) =>
+        {
+            var slider = new Slider
+            {
+                Minimum = 0,
+                Maximum = 200,
+                StepFrequency = 5,
+                Value = VoiceService.Instance.GetVolume(identity) * 100,
+                Width = 200,
+            };
+
+            slider.ValueChanged += (_, _) =>
+                VoiceService.Instance.SetVolume(identity, slider.Value / 100);
+
+            var panel = new StackPanel { Spacing = 4, Padding = new Thickness(12) };
+            panel.Children.Add(new TextBlock
+            {
+                Text = Loc.Get("Bot.VolumeFor", bot.Name),
+                FontSize = 12,
+            });
+            panel.Children.Add(slider);
+
+            new Flyout { Content = panel }.ShowAt(anchor);
+        };
+
+        return item;
     }
 
     /// <summary>

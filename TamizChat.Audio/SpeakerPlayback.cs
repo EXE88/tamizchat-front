@@ -32,6 +32,33 @@ public sealed class SpeakerPlayback : IDisposable
     private WasapiOut? _output;
     private MixProvider? _provider;
 
+    /// <summary>
+    /// Everything this device is about to play, handed over in 10 ms frames of
+    /// 48 kHz mono as it is played.
+    ///
+    /// This is the echo canceller's reference signal, and it is taken here
+    /// rather than anywhere upstream for one reason: what matters is what the
+    /// loudspeaker actually emits, and this is the last place the mix exists as
+    /// a single mono stream before it is spread across the device's channels.
+    /// A reference that is not exactly what was played cancels a sound nobody
+    /// heard and leaves the one they did.
+    ///
+    /// Raised on the playback thread, outside the mixer's lock — the capture
+    /// thread takes that lock too (the soundboard) and the processor's own lock
+    /// on the other side of it, so tapping under the lock would be the two
+    /// threads taking the same pair in opposite orders.
+    /// </summary>
+    public Action<short[]>? RenderTap { get; set; }
+
+    /// <summary>
+    /// How much latency the output was opened with, which is roughly how long it
+    /// is between a frame being tapped and it leaving the speaker. The echo
+    /// canceller wants that number.
+    /// </summary>
+    public int LatencyMilliseconds { get; private set; } = LatencyMs;
+
+    private const int LatencyMs = 60;
+
     public bool IsRunning => _output is not null;
 
     public void Start(MMDevice? device = null)
@@ -44,15 +71,20 @@ public sealed class SpeakerPlayback : IDisposable
         using var enumerator = new MMDeviceEnumerator();
         var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Communications);
 
+        // The system is asked not to quieten everyone else's audio while this
+        // stream is open; see AudioDucking for what that is about.
+        AudioDucking.OptOut(target);
+
         var format = target.AudioClient.MixFormat;
         _provider = new MixProvider(this, format);
 
         // Event sync with a short latency: this is a conversation, and latency
         // people can hear makes them talk over each other.
-        var output = new WasapiOut(target, AudioClientShareMode.Shared, true, 60);
+        var output = new WasapiOut(target, AudioClientShareMode.Shared, true, LatencyMs);
         output.Init(_provider);
         output.Play();
         _output = output;
+        LatencyMilliseconds = LatencyMs;
     }
 
     public void Stop()
@@ -75,10 +107,12 @@ public sealed class SpeakerPlayback : IDisposable
 
         output.Dispose();
         _provider = null;
+        _tapPending.Clear();
 
         lock (_gate)
         {
             _buffers.Clear();
+            _clips.Clear();
         }
     }
 
@@ -246,6 +280,17 @@ public sealed class SpeakerPlayback : IDisposable
     /// </summary>
     private sealed class MixProvider(SpeakerPlayback owner, WaveFormat format) : IWaveProvider
     {
+        /// <summary>
+        /// Device-rate samples produced by the resampler but not yet asked for.
+        ///
+        /// Resampling a block never lands exactly on the number of frames the
+        /// device wants, and the overflow used to be thrown away. That is a
+        /// slow, silent decimation of the mix — and it also meant the echo
+        /// canceller's reference contained samples that were never played, which
+        /// is precisely the way to make it cancel the wrong thing.
+        /// </summary>
+        private readonly Queue<float> _ready = new();
+
         private double _position;
         private float _carry;
 
@@ -256,18 +301,31 @@ public sealed class SpeakerPlayback : IDisposable
             var channels = WaveFormat.Channels;
             var framesWanted = count / (WaveFormat.BitsPerSample / 8) / channels;
 
-            // Ask the mix for as many 48 kHz samples as this many device frames
-            // works out to.
-            var needed = (int)Math.Ceiling(framesWanted * (double)MediaSession.SampleRate / WaveFormat.SampleRate) + 2;
-            var mono = owner.ReadMix(needed);
-            var converted = AudioFormat.Resample(mono, MediaSession.SampleRate, WaveFormat.SampleRate, ref _position, ref _carry);
+            while (_ready.Count < framesWanted)
+            {
+                // Ask the mix for as many 48 kHz samples as the shortfall works
+                // out to, with a little slack so this loop settles in one pass.
+                var shortfall = framesWanted - _ready.Count;
+                var needed = (int)Math.Ceiling(shortfall * (double)MediaSession.SampleRate / WaveFormat.SampleRate) + 2;
+
+                var mono = owner.ReadMix(needed);
+                owner.Tap(mono);
+
+                var converted = AudioFormat.Resample(
+                    mono, MediaSession.SampleRate, WaveFormat.SampleRate, ref _position, ref _carry);
+
+                foreach (var sample in converted)
+                {
+                    _ready.Enqueue(sample);
+                }
+            }
 
             var target = System.Runtime.InteropServices.MemoryMarshal
                 .Cast<byte, float>(buffer.AsSpan(offset, count));
 
             for (var frame = 0; frame < framesWanted; frame++)
             {
-                var value = frame < converted.Length ? converted[frame] : 0f;
+                var value = _ready.Count > 0 ? _ready.Dequeue() : 0f;
                 for (var c = 0; c < channels; c++)
                 {
                     target[(frame * channels) + c] = value;
@@ -278,6 +336,39 @@ public sealed class SpeakerPlayback : IDisposable
             // ended and playback stops for good — silence is the correct output
             // when nobody is talking, not the end of the call.
             return count;
+        }
+    }
+
+    /// <summary>Whatever is left of the mix after the last whole 10 ms frame.</summary>
+    private readonly List<float> _tapPending = [];
+
+    /// <summary>
+    /// Hands the mix to <see cref="RenderTap"/> in exact 10 ms frames.
+    ///
+    /// Only ever called from the playback thread, so its buffer needs no lock —
+    /// and deliberately not called from inside the mixer's lock; see RenderTap.
+    /// </summary>
+    private void Tap(float[] mono)
+    {
+        if (RenderTap is not { } tap)
+        {
+            // Nothing is listening. Do not let the leftovers grow, or turning
+            // the canceller on mid-call would start it with stale audio.
+            _tapPending.Clear();
+            return;
+        }
+
+        _tapPending.AddRange(mono);
+
+        while (_tapPending.Count >= MediaSession.SamplesPer10Ms)
+        {
+            var frame = new short[MediaSession.SamplesPer10Ms];
+            AudioFormat.ToPcm16(
+                System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_tapPending)[..MediaSession.SamplesPer10Ms],
+                frame);
+
+            _tapPending.RemoveRange(0, MediaSession.SamplesPer10Ms);
+            tap(frame);
         }
     }
 }

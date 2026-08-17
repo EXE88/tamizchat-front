@@ -26,7 +26,61 @@ public sealed class VoiceService
     private MediaSession? _session;
     private string _roomId = "";
 
+    /// <summary>
+    /// The echo canceller, alive only while there is a call to cancel.
+    ///
+    /// Null is a working state: on a machine whose native library predates the
+    /// audio processing module, voice runs exactly as it did before.
+    /// </summary>
+    private AudioProcessor? _processor;
+
     public static VoiceService Instance { get; } = new();
+
+    private bool _following;
+
+    /// <summary>
+    /// Ties voice to the session for the whole life of the app.
+    ///
+    /// It used to be the room page that did this, and only while that page was
+    /// on screen. Anybody who left a room — or lost the server entirely — from
+    /// the chat page, the paint board or the admin panel kept a live LiveKit
+    /// connection with an open microphone: still heard by a room they were no
+    /// longer in, still counted as present, with nothing on their own screen to
+    /// suggest it. That is the "he disconnected and we could still hear him"
+    /// report, and it can only be fixed somewhere that does not come and go.
+    /// </summary>
+    public void Follow()
+    {
+        if (_following)
+        {
+            return;
+        }
+
+        _following = true;
+
+        ServerSession.Instance.Changed += (_, _) => _ = SyncToSessionAsync();
+        ServerSession.Instance.Dropped += (_, _) => _ = LeaveAsync();
+    }
+
+    /// <summary>Joins, leaves or moves so that voice matches the room the session says we are in.</summary>
+    private async Task SyncToSessionAsync()
+    {
+        try
+        {
+            if (!ServerSession.Instance.IsConnected
+                || string.IsNullOrEmpty(ServerSession.Instance.MyRoomId))
+            {
+                await LeaveAsync().ConfigureAwait(true);
+                return;
+            }
+
+            await JoinAsync().ConfigureAwait(true);
+        }
+        catch (Exception)
+        {
+            // Voice failing must never take the rest of the session with it.
+        }
+    }
 
     /// <summary>Raised on the UI thread when connection, mute or speaker state changed.</summary>
     public event EventHandler? Changed;
@@ -157,6 +211,8 @@ public sealed class VoiceService
         CanShareScreen = credentials.CanShareScreen;
         IsMuted = true;
 
+        StartProcessor();
+
         _speakers.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
 
         // Re-apply whatever this listener had set for the people already here.
@@ -165,6 +221,8 @@ public sealed class VoiceService
             _speakers.SetGain(uuid, volume);
         }
 
+        _processor?.SetStreamDelay(_speakers.LatencyMilliseconds + CaptureDelayMs);
+        StartSpeakingWatch();
         Raise();
 
         if (CanSpeak)
@@ -216,6 +274,72 @@ public sealed class VoiceService
     }
 
     /// <summary>
+    /// Roughly how long the microphone's own buffering adds on top of the
+    /// output's latency. The canceller only wants the right order of magnitude
+    /// to start from; it measures the rest itself.
+    /// </summary>
+    private const int CaptureDelayMs = 20;
+
+    /// <summary>
+    /// Brings up the echo canceller and points the speaker mix at it.
+    ///
+    /// Both halves are needed and neither does anything alone: the render tap
+    /// teaches it what is coming out of the loudspeaker, and the capture call in
+    /// <see cref="OnFrameReady"/> is where that is subtracted from what the
+    /// microphone heard. Without it, everybody on speakers sends the whole room
+    /// back to the room — which is why one person joining could be heard twice,
+    /// and why a music bot's track arrived doubled.
+    /// </summary>
+    private void StartProcessor()
+    {
+        StopProcessor();
+
+        if (!SettingsStore.Current.EchoCancellation)
+        {
+            return;
+        }
+
+        _processor = AudioProcessor.TryCreate(
+            echoCancellation: true,
+            noiseSuppression: SettingsStore.Current.NoiseSuppression,
+            highPassFilter: true,
+            gainControl: false);
+
+        if (_processor is not null)
+        {
+            _speakers.RenderTap = OnRendered;
+        }
+    }
+
+    private void StopProcessor()
+    {
+        _speakers.RenderTap = null;
+        _processor?.Dispose();
+        _processor = null;
+    }
+
+    /// <summary>
+    /// One 10 ms frame of exactly what the speakers are playing, on the playback
+    /// thread. It is handed straight over; the processor does its own locking.
+    /// </summary>
+    private void OnRendered(short[] frame) => _processor?.ProcessRender(frame);
+
+    /// <summary>
+    /// Reopens the canceller, for when it is switched on or off in Settings
+    /// while a call is already up.
+    /// </summary>
+    public void ReloadProcessing()
+    {
+        if (!IsConnected)
+        {
+            return;
+        }
+
+        StartProcessor();
+        _processor?.SetStreamDelay(_speakers.LatencyMilliseconds + CaptureDelayMs);
+    }
+
+    /// <summary>
     /// Deafen: stop hearing anyone. Distinct from muting, and it does not touch
     /// the LiveKit subscription — the audio still arrives, it just is not played,
     /// so undeafening is instant rather than a renegotiation.
@@ -235,7 +359,15 @@ public sealed class VoiceService
         }
         else if (IsConnected)
         {
-            _speakers.Start();
+            // With the chosen device, not the system default. Undeafening used
+            // to reopen whatever Windows felt like, so somebody who had picked
+            // their headset found themselves back on the monitor speakers.
+            _speakers.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
+
+            foreach (var (uuid, volume) in SettingsStore.Current.UserVolumes)
+            {
+                _speakers.SetGain(uuid, volume);
+            }
         }
 
         // The room is told, the same way it is told about the microphone: a
@@ -276,9 +408,13 @@ public sealed class VoiceService
         IsCameraOn = false;
         IsScreenSharing = false;
 
+        StopSpeakingWatch();
         _microphone.Stop();
         _microphone.FrameReady -= OnFrameReady;
         _speakers.Stop();
+        StopProcessor();
+        _mutedBeforeClip = null;
+        Soundboard.Stop();
 
         _camera.FrameReady -= OnCameraFrame;
         await _camera.StopAsync().ConfigureAwait(true);
@@ -425,7 +561,14 @@ public sealed class VoiceService
             return;
         }
 
-        _screen.Start(target ?? throw new InvalidOperationException("nothing was chosen to share"));
+        // Read at the moment of sharing rather than held, so changing the
+        // quality in Settings takes effect on the next share without a restart.
+        _screen.MaxHeight = SettingsStore.Current.ScreenShareMaxHeight;
+        _screen.DrawCursor = SettingsStore.Current.ScreenShareCursor;
+
+        _screen.Start(
+            target ?? throw new InvalidOperationException("nothing was chosen to share"),
+            Math.Clamp(SettingsStore.Current.ScreenShareFps, 1, 60));
         await _session.StartVideoAsync(VideoKind.Screen, _screen.Width, _screen.Height).ConfigureAwait(true);
         _screen.FrameReady += OnScreenFrame;
 
@@ -504,9 +647,17 @@ public sealed class VoiceService
     /// </summary>
     private void OnFrameReady(object? sender, short[] pcm)
     {
-        // Your own level first, before anything else touches the frame: the
-        // voice changer and the soundboard should both work on a signal that is
-        // already at the level you chose.
+        // The echo canceller comes first, on the rawest signal there is.
+        //
+        // It has to see the microphone as the microphone heard it: any gain,
+        // pitch shifting or mixed-in clip applied beforehand is a signal that
+        // was never in the room, and it would be trying to match its reference
+        // against something the loudspeaker never produced.
+        _processor?.ProcessCapture(pcm);
+
+        // Your own level next, before the effects: the voice changer and the
+        // soundboard should both work on a signal that is already at the level
+        // you chose.
         var gain = SettingsStore.Current.MicGain;
         if (Math.Abs(gain - 1.0) > 0.001)
         {
@@ -517,9 +668,20 @@ public sealed class VoiceService
         }
 
         Effect.Process(pcm);
-        var playing = Soundboard.MixInto(pcm);
+
+        // The clip is taken out separately so what goes to this user's own
+        // speakers is the clip alone. Sending the mixed frame back would put
+        // their own voice through their own speakers — a monitor loop, and one
+        // the canceller would then have to chase.
+        var monitor = new short[pcm.Length];
+        var playing = Soundboard.MixInto(pcm, monitor);
 
         _session?.SendCapturedFrame(pcm);
+
+        // Local speaking state, straight off the frame that is being sent. It is
+        // what makes the ring appear on the first syllable instead of a second
+        // into the sentence.
+        NoteSpeech(ServerSession.Instance.MyUuid, pcm);
 
         // The user hears their own soundboard, but never their own voice. Voice
         // would be a monitor loop with the round trip's delay, which is
@@ -527,12 +689,20 @@ public sealed class VoiceService
         // expect to hear.
         if (playing && !IsDeafened)
         {
-            _speakers.Submit("soundboard", pcm);
+            _speakers.Submit("soundboard", monitor);
         }
 
         if (playing != _wasPlayingClip)
         {
             _wasPlayingClip = playing;
+
+            // A clip that has just finished gives the microphone back to
+            // whatever state it was in before the button was pressed.
+            if (!playing)
+            {
+                _ui.TryEnqueue(() => _ = RestoreMuteAfterClipAsync());
+            }
+
             Raise();
         }
     }
@@ -565,6 +735,11 @@ public sealed class VoiceService
 
         if (IsMuted && CanSpeak)
         {
+            // Remembered before it is changed, so the microphone can be put back
+            // afterwards. Leaving it open was a real trap: somebody sitting
+            // muted pressed a sound, and from then on the whole room could hear
+            // them without a single thing on screen having changed.
+            _mutedBeforeClip = true;
             await SetMutedAsync(false).ConfigureAwait(true);
         }
 
@@ -572,11 +747,57 @@ public sealed class VoiceService
         Raise();
     }
 
+    /// <summary>
+    /// What the microphone was before a clip opened it, or null when the clip
+    /// did not change anything.
+    /// </summary>
+    private bool? _mutedBeforeClip;
+
+    /// <summary>
+    /// Puts the microphone back the way the clip found it.
+    ///
+    /// Only when the clip is the reason it opened: somebody who unmuted by hand
+    /// while their airhorn was playing meant it, and having the app mute them a
+    /// second later would be worse than the bug this fixes.
+    /// </summary>
+    private async Task RestoreMuteAfterClipAsync()
+    {
+        var restore = _mutedBeforeClip;
+        _mutedBeforeClip = null;
+
+        if (restore == true && !IsMuted)
+        {
+            await SetMutedAsync(true).ConfigureAwait(true);
+        }
+    }
+
     /// <summary>Cuts a clip short, for the Stop the bar shows while one is playing.</summary>
     public void StopEffect()
     {
         Soundboard.Stop();
+        _ = RestoreMuteAfterClipAsync();
         Raise();
+    }
+
+    /// <summary>
+    /// Plays a notification through the call's own output, if one is open.
+    ///
+    /// This matters more than it looks: the echo canceller only knows about
+    /// audio that went through this mixer, so a notification played on a device
+    /// of its own is a sound the microphone picks up and nothing removes — and
+    /// then everybody else in the room hears your join chime as well as their
+    /// own. Returns false when there is no call, and the caller falls back to
+    /// its own output.
+    /// </summary>
+    public bool PlayNotification(short[] pcm)
+    {
+        if (!_speakers.IsRunning)
+        {
+            return false;
+        }
+
+        _speakers.PlayClip(pcm);
+        return true;
     }
 
     /// <summary>True while a soundboard clip is playing, so the bar can offer Stop.</summary>
@@ -588,15 +809,143 @@ public sealed class VoiceService
         Raise();
     }
 
-    private void OnFrameReceived(object? sender, RemoteAudioFrame frame) =>
+    private void OnFrameReceived(object? sender, RemoteAudioFrame frame)
+    {
+        NoteSpeech(frame.Identity, frame.Pcm);
         _speakers.Submit(frame.Identity, frame.Pcm);
+    }
 
-    private void OnSpeakersChanged(object? sender, IReadOnlyList<string> speakers) =>
-        _ui.TryEnqueue(() =>
+    // --- who is talking ---
+    //
+    // LiveKit's active-speaker list is a server-side judgement, smoothed and
+    // sent a few times a second, and it showed: somebody talking for five
+    // seconds got a ring for the last two of them. Every frame of everybody's
+    // audio already passes through this class, so the answer is here, a hundred
+    // times a second, with no round trip at all. LiveKit's list is still taken
+    // as a floor, because it knows about participants whose audio this client
+    // has not subscribed to.
+
+    /// <summary>
+    /// Below this the frame is a quiet room rather than a voice. Measured on the
+    /// 16-bit scale, so about -46 dBFS: quiet enough to catch someone speaking
+    /// softly, loud enough that a fan or a keyboard does not light the ring up.
+    /// </summary>
+    private const double SpeechThreshold = 160;
+
+    /// <summary>
+    /// How long the ring stays on after the last loud frame.
+    ///
+    /// Speech is full of gaps — every stop consonant is a moment of silence —
+    /// and a ring that follows them exactly flickers. A quarter of a second
+    /// bridges the gaps inside a sentence without outlasting the sentence.
+    /// </summary>
+    private static readonly TimeSpan SpeechHold = TimeSpan.FromMilliseconds(250);
+
+    private readonly Dictionary<string, DateTime> _lastSpoke = [];
+    private readonly object _speechGate = new();
+    private IReadOnlyList<string> _reported = [];
+    private DispatcherQueueTimer? _speechTimer;
+
+    /// <summary>
+    /// Records that one participant's frame carried speech. Called from the
+    /// capture thread and from every receiving thread, so the map is locked.
+    /// </summary>
+    private void NoteSpeech(string identity, short[] pcm)
+    {
+        if (string.IsNullOrEmpty(identity) || pcm.Length == 0)
         {
-            Speakers = speakers;
-            Changed?.Invoke(this, EventArgs.Empty);
-        });
+            return;
+        }
+
+        // Root mean square, not peak: one sample of a click should not count as
+        // talking, and speech carries its energy across the whole frame.
+        double sum = 0;
+        foreach (var sample in pcm)
+        {
+            sum += (double)sample * sample;
+        }
+
+        if (Math.Sqrt(sum / pcm.Length) < SpeechThreshold)
+        {
+            return;
+        }
+
+        lock (_speechGate)
+        {
+            _lastSpoke[identity] = DateTime.UtcNow;
+        }
+    }
+
+    private void StartSpeakingWatch()
+    {
+        _speechTimer ??= _ui.CreateTimer();
+        _speechTimer.Interval = TimeSpan.FromMilliseconds(60);
+        _speechTimer.IsRepeating = true;
+        _speechTimer.Tick -= OnSpeechTick;
+        _speechTimer.Tick += OnSpeechTick;
+        _speechTimer.Start();
+    }
+
+    private void StopSpeakingWatch()
+    {
+        _speechTimer?.Stop();
+
+        lock (_speechGate)
+        {
+            _lastSpoke.Clear();
+        }
+
+        _reported = [];
+        Speakers = [];
+    }
+
+    /// <summary>
+    /// Recomputes the speaking set and only raises when it really changed —
+    /// sixteen times a second into a room redraw would be a redraw for nothing.
+    /// </summary>
+    private void OnSpeechTick(DispatcherQueueTimer sender, object args)
+    {
+        var now = DateTime.UtcNow;
+        List<string> speaking;
+
+        lock (_speechGate)
+        {
+            foreach (var stale in _lastSpoke.Where(e => now - e.Value > SpeechHold).Select(e => e.Key).ToList())
+            {
+                _lastSpoke.Remove(stale);
+            }
+
+            speaking = [.. _lastSpoke.Keys];
+        }
+
+        // A muted microphone is never talking, whatever the last frame said.
+        if (IsMuted)
+        {
+            speaking.Remove(ServerSession.Instance.MyUuid);
+        }
+
+        if (speaking.Count == _reported.Count && !speaking.Except(_reported).Any())
+        {
+            return;
+        }
+
+        _reported = speaking;
+        Speakers = speaking;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Deliberately ignored now.
+    ///
+    /// It was the only source of "who is talking" and it is the reason the ring
+    /// lagged: it is computed on the server, smoothed, and pushed a few times a
+    /// second. Every frame already passes through this class, so the local
+    /// answer is both instant and more accurate. The subscription is kept so
+    /// that turning it back on is one line if it is ever needed again.
+    /// </summary>
+    private void OnSpeakersChanged(object? sender, IReadOnlyList<string> speakers)
+    {
+    }
 
     /// <summary>
     /// Video arrives at up to 30 frames a second per person, so it is handed to

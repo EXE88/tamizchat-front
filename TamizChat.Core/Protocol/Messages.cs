@@ -46,7 +46,17 @@ public sealed class User
     [JsonPropertyName("media")]
     public MediaSetState Media { get; set; } = new();
 
-    /// <summary>The circle avatar's letter. Users have no profile pictures.</summary>
+    /// <summary>
+    /// The tag of this user's profile picture, empty when they have none.
+    ///
+    /// Not the picture and not a URL: it changes only when the picture does, so
+    /// it is both the cache key and the signal to fetch again. The bytes come
+    /// from <c>/api/v1/avatar/{client_uuid}</c>.
+    /// </summary>
+    [JsonPropertyName("avatar")]
+    public string Avatar { get; set; } = "";
+
+    /// <summary>The letter drawn when there is no profile picture.</summary>
     public string Initial => string.IsNullOrWhiteSpace(Username)
         ? "?"
         : Username.Trim()[..1].ToUpperInvariant();
@@ -240,6 +250,28 @@ public sealed class FileUploadTicket
     public long MaxSize { get; set; }
 }
 
+/// <summary>
+/// Permission to upload exactly one profile picture, once.
+///
+/// There is no matching download ticket: a picture is fetched from
+/// <c>/api/v1/avatar/{client_uuid}</c> with no token, because everyone on the
+/// server is shown it beside a name they can already see.
+/// </summary>
+public sealed class AvatarUploadTicket
+{
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = "";
+
+    [JsonPropertyName("token")]
+    public string Token { get; set; } = "";
+
+    [JsonPropertyName("expires_at")]
+    public long ExpiresAt { get; set; }
+
+    [JsonPropertyName("max_size")]
+    public long MaxSize { get; set; }
+}
+
 public sealed class FileDownloadRequest
 {
     [JsonPropertyName("file_id")]
@@ -388,6 +420,15 @@ public sealed class RoomJoined
 {
     [JsonPropertyName("room")]
     public Room Room { get; set; } = new();
+
+    /// <summary>
+    /// Empty when the user asked to be here, and <c>moved_by_admin</c> when they
+    /// did not. The same frame arrives both as the reply to our own
+    /// <c>room.join</c> and, unsolicited, when somebody moves this user — this
+    /// is the only thing that tells the two apart.
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string Reason { get; set; } = "";
 }
 
 /// <summary>The reply to <c>room.list</c>: the whole tree, members included.</summary>

@@ -138,6 +138,8 @@ public sealed class MembersOverlay : OverlayWindow
                 CornerRadius = new CornerRadius(16),
             };
             Root.Children.Add(row);
+
+            Update(member);
         }
 
         public Grid Root { get; }
@@ -155,6 +157,13 @@ public sealed class MembersOverlay : OverlayWindow
             Avatar.SetSelfMuted(micOff, deafened, member.Username);
             Name.Text = member.Username;
             Avatar.SetMuted(member.Muted);
+
+            // The picture belongs here and not only in the constructor. A row is
+            // built once and then only updated, so setting it up there meant
+            // asking for the picture at the one moment it is certain not to have
+            // arrived yet — and never asking again. The overlay showed the
+            // letter for ever, which is exactly what was reported.
+            Avatar.SetUser(member);
         }
     }
 }

@@ -2,17 +2,22 @@ using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Shapes;
+using TamizChat.Core.Protocol;
 using TamizChat.Localization;
 using Windows.UI;
 
 namespace TamizChat.Controls;
 
 /// <summary>
-/// A user's stand-in: a circle with the first letter of their name.
+/// A user's stand-in: their profile picture, or a circle with the first letter
+/// of their name when they have not uploaded one.
 ///
-/// There are no profile pictures in TamizChat, so the circle is the identity.
-/// Its colour is derived from the name, which makes people distinguishable at a
-/// glance without anyone choosing anything.
+/// The letter is not a placeholder to be ashamed of — its colour is derived from
+/// the name, so the same person is the same colour on every client and every
+/// run, and a room of people with no pictures is still readable at a glance.
+/// A picture simply replaces the fill when there is one.
 /// </summary>
 public sealed class AvatarView : Grid
 {
@@ -21,6 +26,7 @@ public sealed class AvatarView : Grid
     private readonly TextBlock _letter;
     private readonly Border _badge;
     private readonly TextBlock _badgeGlyph;
+    private readonly Ellipse _picture;
     private bool _isSpeaking;
 
     public AvatarView(string username, double size = 44)
@@ -77,12 +83,95 @@ public sealed class AvatarView : Grid
             Visibility = Visibility.Collapsed,
         };
 
+        // The picture sits over the coloured circle rather than replacing it, so
+        // the letter is still there underneath while the bytes are on their way
+        // and there is never a blank hole in the room.
+        //
+        // An Ellipse with an ImageBrush, not an Image with a clip: a brush
+        // fills the shape and the shape is already a circle, which is one
+        // element instead of a clipped image inside a border.
+        _picture = new Ellipse { Visibility = Visibility.Collapsed };
+
         Children.Add(_halo);
         Children.Add(_circle);
+        Children.Add(_picture);
         Children.Add(_badge);
 
         ScaleBadge(size);
         ToolTipService.SetToolTip(this, username);
+    }
+
+    /// <summary>
+    /// Points this avatar at a person, and keeps it pointed there.
+    ///
+    /// The picture is almost never ready the first time it is asked for — the
+    /// first call starts the download and returns nothing — so a caller that
+    /// only asks once draws the letter for ever. The room grid got away with it
+    /// because it redraws constantly; the members overlay and a chat row do not,
+    /// and that is exactly where the picture never appeared.
+    ///
+    /// So the control watches for its own person's picture arriving rather than
+    /// leaving every call site to remember. Subscribed only while the control is
+    /// in the tree: an avatar in a room that emptied would otherwise be held
+    /// alive by the event for as long as the app runs.
+    /// </summary>
+    public void SetUser(User member)
+    {
+        _clientUuid = member.ClientUuid;
+        SetPicture(Services.Avatars.Get(member));
+
+        if (_watching)
+        {
+            return;
+        }
+
+        _watching = true;
+
+        Loaded += (_, _) => Services.Avatars.Loaded += OnAvatarLoaded;
+        Unloaded += (_, _) => Services.Avatars.Loaded -= OnAvatarLoaded;
+
+        // Already in the tree when this is first called — a cell built during a
+        // redraw rather than at page load — so Loaded has been and gone.
+        if (IsLoaded)
+        {
+            Services.Avatars.Loaded += OnAvatarLoaded;
+        }
+    }
+
+    private string _clientUuid = "";
+    private bool _watching;
+
+    private void OnAvatarLoaded(object? sender, string clientUuid)
+    {
+        if (clientUuid == _clientUuid && Services.Avatars.TryGet(clientUuid) is { } image)
+        {
+            SetPicture(image);
+        }
+    }
+
+    /// <summary>
+    /// Shows a picture directly, or goes back to the letter when there is none.
+    /// </summary>
+    public void SetPicture(BitmapImage? image)
+    {
+        if (image is null)
+        {
+            _picture.Fill = null;
+            _picture.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _picture.Fill = new ImageBrush
+        {
+            ImageSource = image,
+
+            // The stored picture is square, but Fill would still distort
+            // anything that is not — and UniformToFill crops instead, which is
+            // what a circular avatar wants.
+            Stretch = Stretch.UniformToFill,
+        };
+
+        _picture.Visibility = Visibility.Visible;
     }
 
     /// <summary>Draws the ring that marks whoever is talking.</summary>
@@ -101,7 +190,11 @@ public sealed class AvatarView : Grid
         }
     }
 
-    public void SetMuted(bool muted) => _circle.Opacity = muted ? 0.45 : 1.0;
+    public void SetMuted(bool muted)
+    {
+        _circle.Opacity = muted ? 0.45 : 1.0;
+        _picture.Opacity = muted ? 0.45 : 1.0;
+    }
 
     /// <summary>
     /// Marks what this person has switched off.

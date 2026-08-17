@@ -8,7 +8,193 @@ The backend has its own memory at `../../backend/MEMORY.md`, and its wire
 contract at `../../backend/docs/PROTOCOL.md` — that document is the spec this
 client is built against.
 
-Last updated: 2026-08-15 — F0 to F10, the post-F10 round and the in-client admin panel (including bots) done; next is F11, the installer
+Last updated: 2026-08-17 — everything through F11 is done, plus the first
+production-feedback round, which is where the interesting parts now are
+
+---
+
+## The first production round (2026-08-17)
+
+Twelve complaints from real use, and a feature. What each turned out to be.
+
+### The echo was one bug, not four
+
+Reported four ways: a leave sound heard twice; a join sound heard twice *and*
+heard by the person who caused it; a music bot's track playing twice at once for
+everybody; and the person leaving hearing their own departure. Most of that is
+one thing — **there was no acoustic echo cancellation at all.** Anyone not
+wearing headphones had every sound the app played picked up by their own
+microphone and sent back to the room, so each person heard everything twice:
+once directly, once round the trip. The bot's music doubling is the proof, since
+a track no client generates locally can only double acoustically.
+
+**The fix is the real WebRTC AEC3**, not something written here.
+`Livekit.Rtc.Dotnet` ships libwebrtc's audio processing module behind the FFI
+(`NewApm` / `ApmProcessStream` / `ApmProcessReverseStream` /
+`ApmSetStreamDelay`), and `LiveKit.Rtc.Internal.FfiClient.SendRequest` is public,
+so `TamizChat.Core/Media/AudioProcessor.cs` drives it directly. The package ships
+no managed wrapper for it — this is the only route to it.
+
+Things that are load-bearing:
+
+- **libwebrtc's own echo canceller cannot help here.** It only works when
+  libwebrtc owns the loudspeaker, and it does not: capture is `MicrophoneCapture`
+  and playback is `SpeakerPlayback`, both WASAPI, both ours. The APM as a
+  standalone object is the piece that fits a client doing its own device I/O.
+- **The reference is tapped in `SpeakerPlayback`, at the mono 48 kHz mix**, right
+  before it is spread across the device's channels. It has to be exactly what the
+  loudspeaker emits; anything else cancels a sound nobody heard.
+- **The tap fires outside the mixer's lock.** The capture thread takes the
+  processor's lock and then the mixer's (the soundboard); tapping under the
+  mixer's lock would be the two threads taking the same pair in opposite orders.
+- **`MixProvider` used to throw the resampler's overflow away.** That is a slow
+  silent decimation of the mix, and it also put samples in the reference that
+  were never played. It keeps them now, and the leftover cannot grow: it feeds
+  back into the next pull's shortfall.
+- **The soundboard's local monitor is the clip alone**, not the mixed frame.
+  Submitting the frame put the user's own voice through their own speakers, which
+  with a canceller in the path is a loop.
+- **Notification sounds go through the call's mixer**, not an output device of
+  their own. Audio the canceller knows nothing about is audio the microphone
+  sends to the room — which is why everybody heard everybody else's join chimes.
+  `EventSounds` keeps its own output only for when there is no call.
+- `AudioProcessor.TryCreate` returning null is a working state: an older native
+  binary just means voice behaves as it did before.
+- Frames must be exactly 10 ms, which the whole path already is.
+
+### The other half of the doubled sounds
+
+`ServerSession` really did play two chimes for one departure: `room.member_left`
+(UserLeftYourRoom) and `user.left` (UserLeftServer) both fire when somebody in
+your room disconnects. `AlreadyAnnounced` suppresses the second. It answers in
+either event order — a short-lived set for "the room one already fired", and the
+room tree for "it has not fired yet, but they are still listed in my room".
+
+### The move sounds had never played once
+
+Not a client bug. See `../../backend/MEMORY.md`: the server never put
+`moved_by_admin` on a membership event. The client also had **no handler for
+`room.joined` as an event**, so a moved user never re-read the room tree and
+their voice stayed connected to the room they had been taken out of.
+
+### Mute, and the four ways it could lie
+
+- **The bottom bar was the only place mute lived.** A key binding, a soundboard
+  clip, or the microphone failing to open all changed the truth without changing
+  the button. `MainWindow.SyncVoiceToggles` redraws all four media toggles from
+  `VoiceService` on every `Changed`, and after `SetItems` — a rebuilt toggle
+  starts at its declared default, not at the truth. `SetToggle` deliberately does
+  not raise `StateChanged`, so this cannot loop back.
+- **A soundboard clip opened the microphone and left it open.** Somebody sitting
+  muted pressed a sound and was audible from then on, with nothing on screen
+  having changed. `_mutedBeforeClip` remembers, and only restores when the clip
+  is what opened it — unmuting by hand during a clip was meant.
+- **`MediaSession.SetMuted` never muted the LiveKit track**, only stopped feeding
+  the source. Both are needed: the first silences, the second makes it true for
+  everybody else.
+- **Voice was tied to the room page being on screen.** Leaving a room, or losing
+  the server, from chat, paint or the admin panel left a live LiveKit connection
+  with an open microphone. `VoiceService.Follow()` ties it to the session for the
+  life of the app instead, and `DisconnectAsync` awaits `LeaveAsync` first.
+
+### The speaking ring lagged because it was not ours
+
+It came from LiveKit's `ActiveSpeakersChanged`, which is judged server-side,
+smoothed and pushed a few times a second — five seconds of talking lit the ring
+for the last two. Every frame of everybody's audio already passes through
+`VoiceService`, so it is computed there now: RMS per frame, a 250 ms hold to
+bridge the gaps inside a sentence, and a 60 ms timer that only raises when the
+set really changed. LiveKit's list is ignored rather than used as a floor —
+keeping it would have added its own lag back on the trailing edge.
+
+### Screen sharing
+
+- **The cursor was never in the picture.** GDI does not capture it — the
+  compositor draws it on top of the desktop's pixels — so a share showed a screen
+  with nothing pointing at anything. `DrawIconEx` composites it, at full size
+  before any scaling, with the hotspot subtracted. `GetIconInfo` hands over two
+  bitmaps that **must** be deleted, or it is a GDI handle leak fifteen times a
+  second.
+- **Quality is configurable now**: frame rate, and a height ceiling (1080p by
+  default) applied with `StretchBlt` in `HALFTONE` mode. The default mode drops
+  pixels rather than averaging them, which turns text into a sieve — and text is
+  most of what anybody shares a screen to show.
+- A window still has to be drawn at its own size first (`PrintWindow` takes no
+  scale), so scaling goes through an intermediate surface.
+
+### Somebody's picture, full size
+
+`VideoStage` is a panel over the room page, not a second window: a window would
+need its own title bar, theme plumbing and Alt-Tab entry, and would lose the
+bottom bar — which is where mute is, and watching somebody's screen is exactly
+when people reach for it. Click a tile carrying video, or its expand button;
+Escape, the close button or a double-click puts it back. The click is handled on
+the cell so it never reaches the room tile behind, whose double-click means
+"move me into this room".
+
+### Settings without leaving the server
+
+There was no Settings entry in the in-server bar at all, so the only route was
+Disconnect, change one thing, reconnect, find your room again. `ShellItems` has
+one now, and `IsInServer` treats `SettingsPage` as in-server **while the session
+is connected** — which keeps the microphone and speaker toggles on the bar at
+exactly the moment somebody is fiddling with their audio. It is the one page in
+both item sets, which is why the page type alone cannot answer for it.
+
+### Windows was turning everything else down
+
+Sound then Communications quietens every other application by 80% while Windows
+believes a call is in progress, and it is on by default. `AudioDucking.OptOut`
+calls `IAudioSessionControl2::SetDuckingPreference(TRUE)` on this process's
+session on both endpoints before either stream is opened — the documented way for
+a communications application to say it will do its own mixing, which this one
+already does. The interface is declared by hand: NAudio wraps
+`IAudioSessionControl2` but never exposes that call. **If it ever proves not to
+be enough, the guaranteed fallback is that Windows setting itself.**
+
+### Bot volume
+
+A bot is a LiveKit participant like anybody else and its identity is `bot-<id>`
+— already the key `SpeakerPlayback` sums under. So the volume entry is the same
+slider pointed at the same place. It sits *above* the `control_bots` check on
+purpose: turning the music down is not moderation, it changes nothing for anyone
+else, and being unable to do it was the loudest complaint about bots.
+
+### Profile pictures
+
+The wire and the storage are in `../../backend/MEMORY.md`. On this side:
+
+- `Services/Avatars` caches by `client_uuid@tag`, not by user. The same tag is
+  the same picture and is never fetched twice; a different tag is somebody having
+  changed theirs, which is exactly when the old one should go. A fetch in flight
+  is shared — a room redraw asks for the same face from a dozen places at once.
+- `AvatarView` keeps the coloured letter underneath and lays an `Ellipse` with an
+  `ImageBrush` over it, so there is never a blank hole while the bytes are on
+  their way, and the letter is still the whole answer for anyone with no picture.
+- The cache is cleared on disconnect: the client id is the same on every server,
+  so keeping it would show a face from the last one on the next.
+- Nothing is drawn locally after an upload. The server announces it as
+  `user.updated` and every avatar redraws from that; painting it here as well
+  would be a second source of truth that could disagree.
+- **`AvatarView.SetUser`, never `SetPicture(Avatars.Get(x))` at a call site.**
+  The first call for a person starts the download and returns nothing, so a
+  caller that asks once draws the letter for ever. The room grid got away with
+  it because it redraws constantly; the members overlay builds a row once and
+  only ever *updates* it, so the picture never arrived there at all — which is
+  what was reported. `SetUser` makes the control watch for its own person's
+  picture, subscribed only while it is in the tree.
+- Verified from a full-desktop screenshot with a simulated user given a
+  four-quadrant test picture: it appears in the members overlay and in the room
+  grid, with the muted badge still drawn over it.
+
+### There is no "somebody left the server" sound, on purpose
+
+It was removed after the first real use. It fired for people in rooms you cannot
+see, and even when you are in no room at all, so a busy server was a chime every
+few seconds for strangers — and for anybody actually beside you it doubled with
+the room cue. **Every remaining cue is about you or about your own room.**
+`user-left-server.ogg` is still in the assets folder, unused, so the decision is
+reversible without re-recording anything.
 
 ---
 

@@ -5,6 +5,12 @@ namespace TamizChat.Services;
 /// <summary>
 /// The moments that get their own sound. The names match the files in
 /// Assets/Sounds, so adding one is a file plus an enum entry.
+///
+/// Every one of these is about **you** or about **your own room**. There is
+/// deliberately no cue for somebody leaving the server: it fires for people in
+/// rooms you cannot see, and on a busy server that is a chime every few seconds
+/// for strangers. `user-left-server.ogg` is still in the assets folder, unused,
+/// so the decision can be reversed without re-recording anything.
 /// </summary>
 public enum AppSound
 {
@@ -17,7 +23,6 @@ public enum AppSound
     UserLeftYourRoom,
     UserMovedToYourRoom,
     UserMovedOutOfYourRoom,
-    UserLeftServer,
 }
 
 /// <summary>
@@ -26,6 +31,9 @@ public enum AppSound
 /// These never touch the microphone path — nobody else hears them, unlike the
 /// soundboard. They are the TeamSpeak behaviour the project set out to copy: you
 /// know somebody walked into your room without looking at the window.
+///
+/// "Nobody else hears them" is only true because they go through the voice
+/// mixer, which the echo canceller has a reference for. See <see cref="Play"/>.
 ///
 /// Every clip is decoded once, on first use, and kept. They are small, there are
 /// ten of them, and decoding an Opus file on the UI thread every time somebody
@@ -44,7 +52,6 @@ public sealed class EventSounds
         [AppSound.UserLeftYourRoom] = "user-left-your-room",
         [AppSound.UserMovedToYourRoom] = "user-moved-to-your-room",
         [AppSound.UserMovedOutOfYourRoom] = "user-moved-out-of-your-room",
-        [AppSound.UserLeftServer] = "user-left-server",
     };
 
     private readonly Dictionary<AppSound, short[]> _clips = [];
@@ -100,11 +107,6 @@ public sealed class EventSounds
             return;
         }
 
-        // Its own playback device, separate from the voice mixer, so a
-        // notification is not silenced by deafening yourself — being deafened
-        // means not hearing *people*, and these are the app talking to you.
-        _output.Start();
-
         var scaled = clip;
         if (Volume < 0.999)
         {
@@ -115,9 +117,27 @@ public sealed class EventSounds
             }
         }
 
+        // Through the call's own mixer whenever there is one.
+        //
+        // This used to be a second playback device of its own, which sounded
+        // identical and was not: audio played on a device the echo canceller
+        // knows nothing about is picked up by the microphone and sent to the
+        // room, so everybody heard everybody else's join and leave chimes on top
+        // of their own. The mixer is also where per-person volume and the
+        // canceller's reference live, so a notification belongs in it.
+        //
         // PlayClip, not Submit: Submit is the jitter-buffered path for live
         // voice and caps at half a second, which chopped the front off every
         // notification. One-shots mix alongside it and always play whole.
+        if (VoiceService.Instance.PlayNotification(scaled))
+        {
+            return;
+        }
+
+        // No call, or deafened, so nothing else is using the speakers: its own
+        // output, so a notification still arrives. Being deafened means not
+        // hearing *people*, and these are the app talking to you.
+        _output.Start();
         _output.PlayClip(scaled);
     }
 

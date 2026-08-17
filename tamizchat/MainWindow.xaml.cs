@@ -66,6 +66,15 @@ public sealed partial class MainWindow : Window
         EventSounds.Instance.Enabled = SettingsStore.Current.EventSoundsEnabled;
         EventSounds.Instance.Volume = SettingsStore.Current.EventSoundsVolume;
 
+        // Voice tracks the session from here on, rather than only while the room
+        // page happens to be on screen.
+        VoiceService.Instance.Follow();
+
+        // A profile picture arrives after the room has already been drawn with
+        // the letter, so whatever is on screen is asked to draw itself again.
+        Services.Avatars.Loaded += (_, _) => ServerSession.Instance.Redraw();
+        ServerSession.Instance.Dropped += (_, _) => Services.Avatars.Clear();
+
         NavigationService.Instance.Initialize(ContentFrame);
         NavigationService.Instance.Navigated += (_, _) =>
         {
@@ -86,6 +95,14 @@ public sealed partial class MainWindow : Window
             "effects",
             VoiceService.Instance.IsPlayingEffect ? "" : null,
             VoiceService.Instance.IsPlayingEffect ? Loc.Get("Effect.Stop") : null);
+
+        // The bar follows the voice service, never the other way round.
+        //
+        // It used to be the only place mute lived, so a shortcut key — or the
+        // microphone failing to open, or a soundboard clip opening it — changed
+        // what was really happening and left the button saying the opposite.
+        // Anything that can change these states now shows up here.
+        VoiceService.Instance.Changed += (_, _) => SyncVoiceToggles();
 
         NavigationService.Instance.Navigate(typeof(HomePage), NavTransition.None);
 
@@ -336,6 +353,24 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Redraws the four media toggles from what the voice service is actually
+    /// doing.
+    ///
+    /// <see cref="FloatingNavBar.SetToggle"/> deliberately does not raise
+    /// StateChanged, so this cannot loop back into
+    /// <see cref="OnNavStateChanged"/> and toggle the thing it is describing.
+    /// </summary>
+    private void SyncVoiceToggles()
+    {
+        var voice = VoiceService.Instance;
+
+        NavBar.SetToggle("mic", voice.IsConnected && !voice.IsMuted);
+        NavBar.SetToggle("speaker", !voice.IsDeafened);
+        NavBar.SetToggle("camera", voice.IsCameraOn);
+        NavBar.SetToggle("screen", voice.IsScreenSharing);
+    }
+
     /// <summary>Where the chosen entry sits in its item's menu, or null if it is not there.</summary>
     private static int? IndexOfOption(NavBarStateEventArgs e)
     {
@@ -492,6 +527,11 @@ public sealed partial class MainWindow : Window
         }
 
         NavBar.SetItems(items, _selectedKey);
+
+        // SetItems rebuilds the buttons when the item set changed, and a fresh
+        // toggle starts at its declared default rather than at the truth.
+        SyncVoiceToggles();
+
         BackButton.Visibility = NavigationService.Instance.CanGoBack
             ? Visibility.Visible
             : Visibility.Collapsed;

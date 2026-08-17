@@ -68,6 +68,7 @@ public sealed class RoomTile : Grid
         header.Children.Add(_count);
 
         _members = new MemberGrid();
+        _members.VideoActivated += (_, request) => VideoActivated?.Invoke(this, request);
 
         _scroller = new ScrollViewer
         {
@@ -115,6 +116,9 @@ public sealed class RoomTile : Grid
 
     /// <summary>Raised when the user double-clicks the tile to move into the room.</summary>
     public event EventHandler<string>? Activated;
+
+    /// <summary>Raised when somebody's picture in this room should be shown full size.</summary>
+    public event EventHandler<VideoRequest>? VideoActivated;
 
     public string RoomId => _room.Id;
 

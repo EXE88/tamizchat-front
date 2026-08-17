@@ -24,11 +24,14 @@ public sealed partial class ServerPage : Page
     private const double TileGap = 12;
 
     private readonly Dictionary<string, RoomTile> _tiles = [];
+    private readonly VideoStage _stage = new();
     private bool _showAll;
 
     public ServerPage()
     {
         InitializeComponent();
+
+        StageHost.Content = _stage;
 
         Loaded += OnLoaded;
         Unloaded += (_, _) =>
@@ -103,6 +106,11 @@ public sealed partial class ServerPage : Page
     /// </summary>
     private void OnVideoFrame(object? sender, RemoteVideoFrame frame)
     {
+        // The stage first: while it is open it is what the user is looking at,
+        // and the cell behind it keeps taking frames only so that closing the
+        // stage does not land on a frozen tile.
+        _stage.SetVideoFrame(frame);
+
         foreach (var tile in _tiles.Values)
         {
             tile.SetVideoFrame(frame);
@@ -111,11 +119,16 @@ public sealed partial class ServerPage : Page
 
     private void OnVideoEnded(object? sender, RemoteVideoFrame frame)
     {
+        _stage.ClearVideo(frame.Identity, frame.Kind);
+
         foreach (var tile in _tiles.Values)
         {
             tile.ClearVideo(frame.Identity, frame.Kind);
         }
     }
+
+    private void OnVideoActivated(object? sender, VideoRequest request) =>
+        _stage.Show(request.Identity, request.Kind, request.Title);
 
     private void OnExpandClick(object sender, RoutedEventArgs e)
     {
@@ -178,6 +191,7 @@ public sealed partial class ServerPage : Page
 
             var tile = new RoomTile(room, room.Id == myRoomId);
             tile.Activated += OnTileActivated;
+            tile.VideoActivated += OnVideoActivated;
             _tiles[room.Id] = tile;
             RoomGrid.Children.Add(tile);
         }

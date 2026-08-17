@@ -79,7 +79,14 @@ public sealed class Soundboard
     /// own airhorn — and the sum is clamped, because two signals added together
     /// overflow long before either one does on its own.
     /// </summary>
-    public bool MixInto(short[] frame)
+    /// <param name="clipOnly">
+    /// Optional, same length as the frame: receives the clip on its own, with
+    /// no voice in it. That is what the person pressing the button should hear
+    /// out of their own speakers — mixing the frame back would be a monitor of
+    /// their own voice at the round trip's delay, which is disorienting to talk
+    /// over and, once there is an echo canceller in the path, a loop.
+    /// </param>
+    public bool MixInto(short[] frame, short[]? clipOnly = null)
     {
         var ended = false;
 
@@ -105,6 +112,11 @@ public sealed class Soundboard
                 _position++;
 
                 frame[i] = AudioFormat.ToPcm(voice + clip);
+
+                if (clipOnly is not null)
+                {
+                    clipOnly[i] = AudioFormat.ToPcm(clip);
+                }
             }
         }
 

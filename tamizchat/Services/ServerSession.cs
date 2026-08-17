@@ -163,6 +163,16 @@ public sealed class ServerSession
 
     public async Task DisconnectAsync()
     {
+        // Voice first, and awaited. Closing the socket does not close the media
+        // connection — they are two different servers — so leaving this to the
+        // room page's own bookkeeping left people publishing into a room they
+        // had walked out of.
+        await VoiceService.Instance.LeaveAsync().ConfigureAwait(true);
+
+        // Profile pictures are per server: the client id is the same everywhere,
+        // so keeping them would show a face from the last server on the next one.
+        Avatars.Clear();
+
         var client = _client;
         _client = null;
         Server = null;
@@ -313,6 +323,56 @@ public sealed class ServerSession
             throw new InvalidOperationException($"upload refused ({(int)response.StatusCode}): {body}");
         }
     }
+
+    // --- profile picture ---
+
+    /// <summary>
+    /// Uploads a new profile picture: a ticket over the socket, the bytes over
+    /// HTTP, the same two steps as a room file.
+    ///
+    /// Nothing has to be sent afterwards and nothing has to be re-read. The
+    /// server re-encodes the picture, gives it a new tag and announces it as an
+    /// ordinary <c>user.updated</c> — which this client already handles for
+    /// renames — so it appears everywhere, including here, by itself.
+    /// </summary>
+    public async Task UploadAvatarAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (Server is null)
+        {
+            return;
+        }
+
+        var reply = await RequireClient()
+            .RequestAsync(MessageTypes.AvatarUploadRequest, new { }, cancellationToken)
+            .ConfigureAwait(true);
+
+        var ticket = TamizChatClient.Deserialize<AvatarUploadTicket>(reply)
+                     ?? throw new InvalidOperationException("the server did not return an upload ticket");
+
+        await using var stream = File.OpenRead(path);
+        using var content = new StreamContent(stream);
+        using var request = new HttpRequestMessage(HttpMethod.Post, Absolute(ticket.Url)) { Content = content };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ticket.Token);
+
+        using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(true);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(true);
+            throw new InvalidOperationException($"the server refused the picture ({(int)response.StatusCode}): {body}");
+        }
+    }
+
+    /// <summary>Removes this user's picture, leaving the coloured letter.</summary>
+    public Task ClearAvatarAsync() =>
+        RequireClient().RequestAsync(MessageTypes.AvatarClear, new { });
+
+    /// <summary>
+    /// Raises <see cref="Changed"/> without anything having changed on the wire.
+    ///
+    /// For the things that arrive out of band — a profile picture finishing its
+    /// download — where the tree is already right and only the drawing is stale.
+    /// </summary>
+    public void Redraw() => Raise();
 
     /// <summary>
     /// Asks for a short-lived link to a file. The link only works for the room the
@@ -787,16 +847,18 @@ public sealed class ServerSession
                 break;
 
             case MessageTypes.UserLeft:
-                // Someone disconnecting entirely. Whoever was in your room also
-                // produces room.member_left, so this is only the server-wide
-                // departure and is deliberately the quieter of the two.
+                // Someone disconnecting from the server entirely.
+                //
+                // **Deliberately silent.** This used to have a sound of its own
+                // and it was wrong in both directions: it fired for people in
+                // rooms you are not in and even when you are in no room at all,
+                // so on a busy server it is a chime for a stranger walking out
+                // of a conversation you cannot see — and it doubled up with the
+                // room one for anybody who was actually beside you. Only your
+                // own room makes a sound now, which is the rule the other
+                // membership cues already followed.
                 if (e.As<UserLeftEvent>() is { } gone)
                 {
-                    if (gone.ClientUuid != MyUuid)
-                    {
-                        Cue(AppSound.UserLeftServer);
-                    }
-
                     Users = Users.Where(u => u.ClientUuid != gone.ClientUuid).ToList();
                 }
 
@@ -822,6 +884,27 @@ public sealed class ServerSession
             case "room.deleted":
             case "room.purged":
                 QueueRefresh();
+                break;
+
+            case MessageTypes.RoomJoined:
+                // Unsolicited, so this is not the reply to our own room.join:
+                // somebody with the permission put this user in a room. Without
+                // handling it the client never learned it had moved — the room
+                // tree was not re-read, and voice stayed connected to the room
+                // they had just been taken out of, which is exactly the "they
+                // left but I could still hear them" report.
+                if (e.As<RoomJoined>() is { } placed && !string.IsNullOrEmpty(placed.Room.Id))
+                {
+                    MyRoomId = placed.Room.Id;
+
+                    if (placed.Reason == "moved_by_admin")
+                    {
+                        Cue(AppSound.YouWereMoved);
+                    }
+
+                    QueueRefresh();
+                }
+
                 break;
 
             case MessageTypes.RoomLeft:

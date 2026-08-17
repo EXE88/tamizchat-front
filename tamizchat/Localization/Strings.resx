@@ -898,4 +898,79 @@
   <data name="Voice.TheyAreDeafened" xml:space="preserve">
     <value>{0} — speakers off, hearing nobody</value>
   </data>
+  <data name="Video.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Video.Expand" xml:space="preserve">
+    <value>Show full size</value>
+  </data>
+  <data name="Video.SharingScreen" xml:space="preserve">
+    <value>{0} — screen</value>
+  </data>
+  <data name="Bot.Volume" xml:space="preserve">
+    <value>Volume</value>
+  </data>
+  <data name="Bot.VolumeFor" xml:space="preserve">
+    <value>Volume for {0}</value>
+  </data>
+  <data name="Settings.Processing" xml:space="preserve">
+    <value>Microphone processing</value>
+  </data>
+  <data name="Settings.EchoCancellation" xml:space="preserve">
+    <value>Echo cancellation</value>
+  </data>
+  <data name="Settings.EchoCancellationHelp" xml:space="preserve">
+    <value>Removes what your speakers are playing from what your microphone sends. Leave this on unless you wear headphones — without it everyone hears the room twice.</value>
+  </data>
+  <data name="Settings.NoiseSuppression" xml:space="preserve">
+    <value>Noise suppression</value>
+  </data>
+  <data name="Settings.ScreenShare" xml:space="preserve">
+    <value>Screen sharing</value>
+  </data>
+  <data name="Settings.ScreenShareQuality" xml:space="preserve">
+    <value>Picture size</value>
+  </data>
+  <data name="Settings.ScreenShareFps" xml:space="preserve">
+    <value>Frames a second</value>
+  </data>
+  <data name="Settings.ScreenShareCursor" xml:space="preserve">
+    <value>Show my mouse pointer</value>
+  </data>
+  <data name="Settings.ScreenShareHelp" xml:space="preserve">
+    <value>A bigger picture and a higher frame rate cost more of your connection and more of this computer.</value>
+  </data>
+  <data name="Quality.Original" xml:space="preserve">
+    <value>Original size</value>
+  </data>
+  <data name="Quality.1080" xml:space="preserve">
+    <value>1080p</value>
+  </data>
+  <data name="Quality.720" xml:space="preserve">
+    <value>720p</value>
+  </data>
+  <data name="Quality.480" xml:space="preserve">
+    <value>480p</value>
+  </data>
+  <data name="Settings.Profile" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="Settings.DisplayName" xml:space="preserve">
+    <value>Display name</value>
+  </data>
+  <data name="Settings.ProfilePicture" xml:space="preserve">
+    <value>Profile picture</value>
+  </data>
+  <data name="Settings.ProfilePictureHelp" xml:space="preserve">
+    <value>Shown instead of the first letter of your name, to everyone on every server you join.</value>
+  </data>
+  <data name="Settings.ChooseImage" xml:space="preserve">
+    <value>Choose image…</value>
+  </data>
+  <data name="Settings.RemoveImage" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="Settings.ImageFailed" xml:space="preserve">
+    <value>That image could not be used: {0}</value>
+  </data>
 </root>

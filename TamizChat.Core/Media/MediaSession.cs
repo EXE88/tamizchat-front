@@ -144,8 +144,46 @@ public sealed class MediaSession : IAsyncDisposable
     /// <summary>
     /// Stops sending audio while staying in the room, which is what mute means:
     /// the person keeps hearing everyone else.
+    ///
+    /// Two things, and both are needed. Not feeding the source is what actually
+    /// silences the microphone. Muting the track is what makes it *true* for
+    /// everybody else: LiveKit and the server both track a publication's muted
+    /// flag, and a track that keeps claiming to be live while sending nothing is
+    /// how somebody ends up drawn as talking when they are not — or, worse,
+    /// drawn as muted while they are being heard.
     /// </summary>
-    public void SetMuted(bool muted) => IsPublishing = _source is not null && !muted;
+    public void SetMuted(bool muted)
+    {
+        IsPublishing = _source is not null && !muted;
+
+        LocalAudioTrack? track;
+        lock (_gate)
+        {
+            track = _track;
+        }
+
+        if (track is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (muted)
+            {
+                track.Mute();
+            }
+            else
+            {
+                track.Unmute();
+            }
+        }
+        catch (Exception)
+        {
+            // The track is going away. The frames have already stopped, which is
+            // the half that matters to anyone listening.
+        }
+    }
 
     // --- video: camera and screen share ---
 

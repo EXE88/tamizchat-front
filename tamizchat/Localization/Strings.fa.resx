@@ -898,4 +898,79 @@
   <data name="Voice.TheyAreDeafened" xml:space="preserve">
     <value>{0} — اسپیکر خاموش، صدایی نمی‌شنود</value>
   </data>
+  <data name="Video.Close" xml:space="preserve">
+    <value>بستن</value>
+  </data>
+  <data name="Video.Expand" xml:space="preserve">
+    <value>نمایش در اندازه کامل</value>
+  </data>
+  <data name="Video.SharingScreen" xml:space="preserve">
+    <value>{0} — صفحه</value>
+  </data>
+  <data name="Bot.Volume" xml:space="preserve">
+    <value>بلندی صدا</value>
+  </data>
+  <data name="Bot.VolumeFor" xml:space="preserve">
+    <value>بلندی صدای {0}</value>
+  </data>
+  <data name="Settings.Processing" xml:space="preserve">
+    <value>پردازش میکروفون</value>
+  </data>
+  <data name="Settings.EchoCancellation" xml:space="preserve">
+    <value>حذف اکو</value>
+  </data>
+  <data name="Settings.EchoCancellationHelp" xml:space="preserve">
+    <value>آنچه از بلندگو پخش می‌شود را از صدای ارسالی میکروفون حذف می‌کند. اگر هدفون نمی‌زنید روشن بماند؛ بدون آن همه صدای اتاق را دو بار می‌شنوند.</value>
+  </data>
+  <data name="Settings.NoiseSuppression" xml:space="preserve">
+    <value>حذف نویز</value>
+  </data>
+  <data name="Settings.ScreenShare" xml:space="preserve">
+    <value>اشتراک صفحه</value>
+  </data>
+  <data name="Settings.ScreenShareQuality" xml:space="preserve">
+    <value>اندازه تصویر</value>
+  </data>
+  <data name="Settings.ScreenShareFps" xml:space="preserve">
+    <value>فریم در ثانیه</value>
+  </data>
+  <data name="Settings.ScreenShareCursor" xml:space="preserve">
+    <value>نمایش نشانگر ماوس</value>
+  </data>
+  <data name="Settings.ScreenShareHelp" xml:space="preserve">
+    <value>تصویر بزرگ‌تر و فریم بیشتر، پهنای باند و توان بیشتری از این رایانه می‌گیرد.</value>
+  </data>
+  <data name="Quality.Original" xml:space="preserve">
+    <value>اندازه اصلی</value>
+  </data>
+  <data name="Quality.1080" xml:space="preserve">
+    <value>۱۰۸۰p</value>
+  </data>
+  <data name="Quality.720" xml:space="preserve">
+    <value>۷۲۰p</value>
+  </data>
+  <data name="Quality.480" xml:space="preserve">
+    <value>۴۸۰p</value>
+  </data>
+  <data name="Settings.Profile" xml:space="preserve">
+    <value>نمایه</value>
+  </data>
+  <data name="Settings.DisplayName" xml:space="preserve">
+    <value>نام نمایشی</value>
+  </data>
+  <data name="Settings.ProfilePicture" xml:space="preserve">
+    <value>عکس نمایه</value>
+  </data>
+  <data name="Settings.ProfilePictureHelp" xml:space="preserve">
+    <value>به جای حرف اول نامتان، برای همه در هر سروری که وارد می‌شوید نشان داده می‌شود.</value>
+  </data>
+  <data name="Settings.ChooseImage" xml:space="preserve">
+    <value>انتخاب تصویر…</value>
+  </data>
+  <data name="Settings.RemoveImage" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="Settings.ImageFailed" xml:space="preserve">
+    <value>این تصویر قابل استفاده نبود: {0}</value>
+  </data>
 </root>

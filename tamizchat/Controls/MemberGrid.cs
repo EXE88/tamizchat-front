@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TamizChat.Core.Media;
 using TamizChat.Core.Protocol;
+using TamizChat.Localization;
 using TamizChat.Services;
 using Windows.Graphics.Imaging;
 
@@ -27,6 +28,13 @@ public sealed class MemberGrid : Grid
     private IReadOnlyList<Bot> _bots = [];
     private double _viewportWidth;
     private double _viewportHeight;
+
+    /// <summary>
+    /// Raised when somebody's camera or screen in this room should be opened
+    /// full size. Carries the identity, what kind of video it is, and the name
+    /// to caption it with.
+    /// </summary>
+    public event EventHandler<VideoRequest>? VideoActivated;
 
     /// <summary>
     /// Who and what is in the room.
@@ -61,6 +69,7 @@ public sealed class MemberGrid : Grid
             }
 
             var created = new MemberCell(member);
+            created.VideoActivated += (_, request) => VideoActivated?.Invoke(this, request);
             _cells[member.ClientUuid] = created;
             Children.Add(created);
         }
@@ -188,6 +197,9 @@ internal abstract class OccupantCell : Grid
     }
 }
 
+/// <summary>Who to show full size, and what kind of picture it is.</summary>
+public sealed record VideoRequest(string Identity, VideoKind Kind, string Title);
+
 /// <summary>One person's cell: their avatar and name, centred.</summary>
 internal sealed class MemberCell : OccupantCell
 {
@@ -251,15 +263,63 @@ internal sealed class MemberCell : OccupantCell
             Visibility = Visibility.Collapsed,
         };
 
+        // Appears over the picture only while there is one, bottom right, out of
+        // the way of a face. A tile carrying video is clickable and nothing else
+        // in the grid is, so it needs to say so.
+        _expand = new Button
+        {
+            // Written as an escape, like every glyph in this project: pasted
+            // private-use characters get silently stripped in transit and the
+            // button comes out blank.
+            Content = "\uE740",
+            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = 12,
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 0, 6, 6),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Visibility = Visibility.Collapsed,
+        };
+
+        _expand.Click += (_, _) => Expand();
+        ToolTipService.SetToolTip(_expand, Loc.Get("Video.Expand"));
+
         Children.Add(_video);
         Children.Add(_stack);
+        Children.Add(_expand);
 
         // Right-click is where moderation lives. Attached to the cell rather
         // than the avatar so the whole tile is the target — the avatar is a
         // small circle and people aim at the card.
         MemberMenu.Attach(this, () => _member);
 
+        // A single click on somebody's picture opens it full size. Handled here
+        // so it never reaches the room tile behind, whose double-click means
+        // "move me into this room" — clicking a video to enlarge it and being
+        // moved to another room instead would be a nasty surprise.
+        Tapped += (_, e) =>
+        {
+            if (_videoKind is not null)
+            {
+                e.Handled = true;
+                Expand();
+            }
+        };
+
         Update(member);
+    }
+
+    private readonly Button _expand;
+
+    /// <summary>Raised when this person's picture should take over the page.</summary>
+    public event EventHandler<VideoRequest>? VideoActivated;
+
+    private void Expand()
+    {
+        if (_videoKind is { } kind)
+        {
+            VideoActivated?.Invoke(this, new VideoRequest(_member.ClientUuid, kind, _member.Username));
+        }
     }
 
     public void Update(User member)
@@ -267,6 +327,7 @@ internal sealed class MemberCell : OccupantCell
         _member = member;
         _name.Text = member.Username;
         _avatar.SetMuted(member.Muted);
+        _avatar.SetUser(member);
 
         // Their own switches, which are a different thing from a moderator's
         // mute: that dims the avatar, this puts a badge on it.
@@ -340,6 +401,7 @@ internal sealed class MemberCell : OccupantCell
 
         _videoKind = null;
         _video.Visibility = Visibility.Collapsed;
+        _expand.Visibility = Visibility.Collapsed;
         _stack.Visibility = Visibility.Visible;
     }
 
@@ -363,6 +425,7 @@ internal sealed class MemberCell : OccupantCell
             await _videoSource.SetBitmapAsync(bitmap);
 
             _video.Visibility = Visibility.Visible;
+            _expand.Visibility = Visibility.Visible;
             _stack.Visibility = Visibility.Collapsed;
         }
         catch (Exception)

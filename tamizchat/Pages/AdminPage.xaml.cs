@@ -198,7 +198,9 @@ public sealed partial class AdminPage : Page
             var card = Card();
 
             var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-            header.Children.Add(new AvatarView(user.Username, size: 28));
+            var face = new AvatarView(user.Username, size: 28);
+            face.SetUser(user);
+            header.Children.Add(face);
             header.Children.Add(new TextBlock
             {
                 Text = user.Username,

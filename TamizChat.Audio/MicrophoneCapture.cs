@@ -53,6 +53,10 @@ public sealed class MicrophoneCapture : IDisposable
         // different default for calls than for music, and this is a call.
         var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
 
+        // Opening a microphone is what makes Windows decide a call is happening
+        // and turn everything else down. This asks it not to.
+        AudioDucking.OptOut(target);
+
         var capture = new WasapiCapture(target);
         _channels = capture.WaveFormat.Channels;
         _deviceRate = capture.WaveFormat.SampleRate;

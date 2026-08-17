@@ -85,6 +85,46 @@
                 <ProgressBar x:Name="MicMeter" Maximum="100" Height="6" />
             </StackPanel>
 
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="ProcessingLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Microphone processing" />
+                <ToggleSwitch x:Name="EchoSwitch" Header="Echo cancellation" Toggled="OnProcessingChanged" />
+                <TextBlock x:Name="EchoHelp" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource TcTextSecondaryBrush}" />
+                <ToggleSwitch x:Name="NoiseSwitch" Header="Noise suppression" Toggled="OnProcessingChanged" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="ScreenShareLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Screen sharing" />
+                <TextBlock x:Name="ScreenShareHelp" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource TcTextSecondaryBrush}" />
+
+                <TextBlock x:Name="ShareQualityLabel" Margin="0,6,0,0" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Picture size" />
+                <ComboBox x:Name="ShareQualityBox" HorizontalAlignment="Stretch" SelectionChanged="OnShareChanged">
+                    <ComboBoxItem Content="Original size" />
+                    <ComboBoxItem Content="1080p" />
+                    <ComboBoxItem Content="720p" />
+                    <ComboBoxItem Content="480p" />
+                </ComboBox>
+
+                <TextBlock x:Name="ShareFpsLabel" Margin="0,6,0,0" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Frames a second" />
+                <Slider x:Name="ShareFpsSlider" Minimum="5" Maximum="30" StepFrequency="1" ValueChanged="OnShareSliderChanged" />
+
+                <ToggleSwitch x:Name="ShareCursorSwitch" Header="Show my mouse pointer" Toggled="OnShareToggled" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="ProfileLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Profile" />
+                <TextBlock x:Name="ProfilePictureHelp" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource TcTextSecondaryBrush}" />
+
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
+                    <ContentControl x:Name="AvatarPreview" VerticalAlignment="Center" />
+                    <StackPanel Spacing="6" VerticalAlignment="Center">
+                        <Button x:Name="ChooseAvatarButton" Click="OnChooseAvatarClick" Content="Choose image…" />
+                        <Button x:Name="RemoveAvatarButton" Click="OnRemoveAvatarClick" Content="Remove" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock x:Name="AvatarError" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource TcDangerBrush}" Visibility="Collapsed" />
+            </StackPanel>
+
 
             <StackPanel Spacing="6">
                 <TextBlock x:Name="KeysLabel" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource TcTextPrimaryBrush}" Text="Shortcuts" />

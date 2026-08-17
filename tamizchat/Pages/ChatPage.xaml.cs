@@ -244,6 +244,8 @@ public sealed partial class ChatPage : Page
             VerticalAlignment = VerticalAlignment.Top,
         };
 
+        avatar.SetUser(message.Author);
+
         var header = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         header.Children.Add(new TextBlock
         {

@@ -73,6 +73,34 @@ public sealed class AppSettings
     public double MicGain { get; set; } = 1.0;
 
     /// <summary>
+    /// Acoustic echo cancellation. On by default, and it should stay on for
+    /// anybody not wearing headphones — without it every sound the app plays is
+    /// picked up by the microphone and sent back to the room, which is heard by
+    /// everyone as the same sound twice.
+    /// </summary>
+    public bool EchoCancellation { get; set; } = true;
+
+    /// <summary>Background noise removal, from the same processor.</summary>
+    public bool NoiseSuppression { get; set; } = true;
+
+    // --- screen sharing ---
+
+    /// <summary>
+    /// Frames a second for a shared screen. Higher is smoother and costs more:
+    /// the capture is a full-screen copy every frame.
+    /// </summary>
+    public int ScreenShareFps { get; set; } = 15;
+
+    /// <summary>
+    /// The tallest the shared picture is sent at, in pixels; the width follows
+    /// the screen's shape. 0 means send it at its own size.
+    /// </summary>
+    public int ScreenShareMaxHeight { get; set; } = 1080;
+
+    /// <summary>Whether the mouse pointer is drawn into the shared picture.</summary>
+    public bool ScreenShareCursor { get; set; } = true;
+
+    /// <summary>
     /// Action name to virtual-key code. Stored by name rather than by enum
     /// value so adding an action later cannot silently rebind an existing key.
     /// </summary>

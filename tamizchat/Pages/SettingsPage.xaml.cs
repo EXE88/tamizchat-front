@@ -42,6 +42,13 @@ public sealed partial class SettingsPage : Page
         FillDevices(OutputBox, AudioDevices.Outputs(), SettingsStore.Current.OutputDeviceId);
         MicGainSlider.Value = SettingsStore.Current.MicGain * 100;
 
+        EchoSwitch.IsOn = SettingsStore.Current.EchoCancellation;
+        NoiseSwitch.IsOn = SettingsStore.Current.NoiseSuppression;
+
+        ShareQualityBox.SelectedIndex = QualityIndex(SettingsStore.Current.ScreenShareMaxHeight);
+        ShareFpsSlider.Value = Math.Clamp(SettingsStore.Current.ScreenShareFps, 5, 30);
+        ShareCursorSwitch.IsOn = SettingsStore.Current.ScreenShareCursor;
+
         // **After every control has been given its value.** Setting a control
         // raises its change handler, and those handlers write the whole group
         // back to settings — so with this line any higher up, populating the
@@ -52,12 +59,22 @@ public sealed partial class SettingsPage : Page
         Translate();
         RenderClips();
         RenderKeys();
+        RenderAvatar();
         ShowStatus();
         StartMeter();
 
+        // The preview follows the session, so an uploaded picture appears the
+        // moment the server announces it rather than at the next visit.
+        ServerSession.Instance.Changed += OnSessionChanged;
+
         // The timer holds a reference to this page; without stopping it the page
-        // is kept alive after navigating away, and so is the tick.
-        Unloaded += (_, _) => _meter.Stop();
+        // is kept alive after navigating away, and so is the tick. The same goes
+        // for the session's event.
+        Unloaded += (_, _) =>
+        {
+            _meter.Stop();
+            ServerSession.Instance.Changed -= OnSessionChanged;
+        };
     }
 
     private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
@@ -116,6 +133,23 @@ public sealed partial class SettingsPage : Page
         MaxMessagesLabel.Text = Loc.Get("Settings.MaxMessages");
         FadeAfterLabel.Text = Loc.Get("Settings.FadeAfter");
 
+        ProcessingLabel.Text = Loc.Get("Settings.Processing");
+        EchoSwitch.Header = Loc.Get("Settings.EchoCancellation");
+        EchoHelp.Text = Loc.Get("Settings.EchoCancellationHelp");
+        NoiseSwitch.Header = Loc.Get("Settings.NoiseSuppression");
+
+        ScreenShareLabel.Text = Loc.Get("Settings.ScreenShare");
+        ScreenShareHelp.Text = Loc.Get("Settings.ScreenShareHelp");
+        ShareQualityLabel.Text = Loc.Get("Settings.ScreenShareQuality");
+        ShareFpsLabel.Text = Loc.Get("Settings.ScreenShareFps");
+        ShareCursorSwitch.Header = Loc.Get("Settings.ScreenShareCursor");
+
+        ProfileLabel.Text = Loc.Get("Settings.Profile");
+        ProfilePictureHelp.Text = Loc.Get("Settings.ProfilePictureHelp");
+        ChooseAvatarButton.Content = Loc.Get("Settings.ChooseImage");
+        RemoveAvatarButton.Content = Loc.Get("Settings.RemoveImage");
+
+        SetItems(ShareQualityBox, "Quality.Original", "Quality.1080", "Quality.720", "Quality.480");
         SetItems(MembersCornerBox, "Corner.TopLeft", "Corner.TopRight", "Corner.BottomLeft", "Corner.BottomRight");
         SetItems(MessagesCornerBox, "Corner.TopLeft", "Corner.TopRight", "Corner.BottomLeft", "Corner.BottomRight");
 
@@ -303,6 +337,153 @@ public sealed partial class SettingsPage : Page
         if (_loading) return;
         SettingsStore.Current.MicGain = MicGainSlider.Value / 100;
         SettingsStore.Save();
+    }
+
+    // --- microphone processing ---
+
+    private void OnProcessingChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+
+        SettingsStore.Current.EchoCancellation = EchoSwitch.IsOn;
+        SettingsStore.Current.NoiseSuppression = NoiseSwitch.IsOn;
+        SettingsStore.Save();
+
+        // Applied to the call already in progress, not at the next one: somebody
+        // turning echo cancellation on is doing it *because* the room is
+        // currently echoing.
+        VoiceService.Instance.ReloadProcessing();
+    }
+
+    // --- screen sharing ---
+
+    /// <summary>
+    /// The four picture sizes, as the ceiling each one puts on the height.
+    /// Zero is "send it at its own size".
+    /// </summary>
+    private static readonly int[] Qualities = [0, 1080, 720, 480];
+
+    private static int QualityIndex(int maxHeight)
+    {
+        var index = Array.IndexOf(Qualities, maxHeight);
+        return index < 0 ? 1 : index;
+    }
+
+    private void OnShareChanged(object sender, SelectionChangedEventArgs e) => SaveShare();
+
+    private void OnShareToggled(object sender, RoutedEventArgs e) => SaveShare();
+
+    private void OnShareSliderChanged(object sender, RangeBaseValueChangedEventArgs e) => SaveShare();
+
+    /// <summary>
+    /// Writes the screen sharing settings. They are read when a share starts, so
+    /// a change reaches the next share rather than the one already running —
+    /// republishing a live track at a different size would drop the picture for
+    /// everyone watching, which is worse than the change waiting.
+    /// </summary>
+    private void SaveShare()
+    {
+        if (_loading) return;
+
+        SettingsStore.Current.ScreenShareMaxHeight = Qualities[Math.Clamp(ShareQualityBox.SelectedIndex, 0, 3)];
+        SettingsStore.Current.ScreenShareFps = (int)ShareFpsSlider.Value;
+        SettingsStore.Current.ScreenShareCursor = ShareCursorSwitch.IsOn;
+        SettingsStore.Save();
+    }
+
+    // --- profile picture ---
+
+    /// <summary>
+    /// Draws the picture as it will actually appear: the same control the room
+    /// grid uses, at the same shape, rather than a rectangular preview that
+    /// hides how the circle will crop it.
+    /// </summary>
+    private void RenderAvatar()
+    {
+        var me = ServerSession.Instance.Users
+            .FirstOrDefault(u => u.ClientUuid == ServerSession.Instance.MyUuid);
+
+        var view = new TamizChat.Controls.AvatarView(
+            me?.Username ?? SettingsStore.Current.Username, size: 64);
+
+        if (me is not null)
+        {
+            // SetUser, not SetPicture: the picture is never ready the first time
+            // it is asked for, so the control has to watch for its own arrival.
+            view.SetUser(me);
+        }
+
+        AvatarPreview.Content = view;
+
+        // A picture belongs to a server, not to this machine: it is stored there
+        // and shown to the people there. With no connection there is nothing to
+        // upload it to and nothing to show.
+        var connected = ServerSession.Instance.IsConnected;
+        ChooseAvatarButton.IsEnabled = connected;
+        RemoveAvatarButton.IsEnabled = connected && !string.IsNullOrEmpty(me?.Avatar);
+
+        if (!connected)
+        {
+            ShowAvatarError(Loc.Get("Server.NotConnected"));
+        }
+    }
+
+    private async void OnChooseAvatarClick(object sender, RoutedEventArgs e)
+    {
+        AvatarError.Visibility = Visibility.Collapsed;
+
+        var picker = new FileOpenPicker();
+        foreach (var extension in new[] { ".png", ".jpg", ".jpeg", ".gif" })
+        {
+            picker.FileTypeFilter.Add(extension);
+        }
+
+        // An unpackaged app has no implicit window for a picker to sit on, and
+        // it throws without one.
+        var window = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, window);
+
+        var file = await picker.PickSingleFileAsync();
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ServerSession.Instance.UploadAvatarAsync(file.Path);
+
+            // Nothing is drawn here. The server announces the new picture as a
+            // user.updated, the session records it, and every avatar on screen —
+            // this preview included — is redrawn from that. Painting it locally
+            // as well would be a second source of truth that could disagree.
+        }
+        catch (Exception ex)
+        {
+            ShowAvatarError(Loc.Get("Settings.ImageFailed", ex.Message));
+        }
+    }
+
+    private async void OnRemoveAvatarClick(object sender, RoutedEventArgs e)
+    {
+        AvatarError.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            await ServerSession.Instance.ClearAvatarAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowAvatarError(Loc.Get("Settings.ImageFailed", ex.Message));
+        }
+    }
+
+    private void OnSessionChanged(object? sender, EventArgs e) => RenderAvatar();
+
+    private void ShowAvatarError(string message)
+    {
+        AvatarError.Text = message;
+        AvatarError.Visibility = Visibility.Visible;
     }
 
     /// <summary>
