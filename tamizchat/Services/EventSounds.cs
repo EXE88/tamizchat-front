@@ -137,8 +137,34 @@ public sealed class EventSounds
         // No call, or deafened, so nothing else is using the speakers: its own
         // output, so a notification still arrives. Being deafened means not
         // hearing *people*, and these are the app talking to you.
-        _output.Start();
+        //
+        // **On the chosen device.** This used to open with no argument at all,
+        // which meant the system default — so somebody who had picked their
+        // headset in Settings still heard the welcome chime out of their laptop
+        // speakers, and turning the headset down did nothing to it. It is the
+        // first sound anybody hears from this app, and it was coming out of the
+        // wrong hole.
+        _output.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
         _output.PlayClip(scaled);
+    }
+
+    /// <summary>
+    /// Reopens the notification output, for when the chosen device changes.
+    ///
+    /// WASAPI binds a client to one endpoint when it is opened, so the only way
+    /// to move is to close and open again — and this output stays open between
+    /// notifications, so without this it would keep the old device for the rest
+    /// of the session.
+    /// </summary>
+    public void ReopenDevice()
+    {
+        if (!_output.IsRunning)
+        {
+            return;
+        }
+
+        _output.Stop();
+        _output.Start(AudioDevices.Resolve(SettingsStore.Current.OutputDeviceId, input: false));
     }
 
     private static short[] Load(AppSound sound)

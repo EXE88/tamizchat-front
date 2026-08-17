@@ -62,6 +62,35 @@ public static class AudioDevices
         return null;
     }
 
+    /// <summary>
+    /// The name of the device that would be opened right now for a saved id.
+    ///
+    /// It answers the question the device lists cannot: a saved id that is not
+    /// currently active resolves to nothing and the system default is used
+    /// instead, so what the list shows as chosen and what would actually open
+    /// are two different things — and the gap between them is invisible.
+    /// </summary>
+    public static string NameInUse(string id, bool input)
+    {
+        try
+        {
+            if (Resolve(id, input) is { } chosen)
+            {
+                return chosen.FriendlyName;
+            }
+
+            using var enumerator = new MMDeviceEnumerator();
+
+            // Console, matching what SpeakerPlayback and MicrophoneCapture open.
+            return enumerator.GetDefaultAudioEndpoint(
+                input ? DataFlow.Capture : DataFlow.Render, Role.Console).FriendlyName;
+        }
+        catch (Exception)
+        {
+            return "";
+        }
+    }
+
     private static IReadOnlyList<AudioDeviceInfo> List(DataFlow flow)
     {
         var devices = new List<AudioDeviceInfo> { new(SystemDefaultId, "System default") };

@@ -109,11 +109,10 @@ public sealed class VoiceService
     /// </summary>
     public void ReopenDevices()
     {
-        if (!IsConnected)
-        {
-            return;
-        }
-
+        // Deliberately not gated on being in a call. Notifications play with no
+        // call at all — the welcome sound is the first thing anybody hears — so
+        // returning early here left that one output stuck on whatever device it
+        // first opened, for the whole session.
         if (_speakers.IsRunning)
         {
             _speakers.Stop();
@@ -137,7 +136,23 @@ public sealed class VoiceService
                 // The chosen microphone has gone; stay quiet rather than crash.
             }
         }
+
+        // Notifications have an output of their own for when there is no call,
+        // and it has to follow the choice too — it is the thing that plays the
+        // welcome sound, before any call exists.
+        EventSounds.Instance.ReopenDevice();
+
+        Raise();
     }
+
+    /// <summary>
+    /// The endpoints actually in use, which are not always the ones chosen: a
+    /// device that is unplugged when a call starts falls back to the system
+    /// default. Settings shows these so that fallback stops being invisible.
+    /// </summary>
+    public string SpeakerDeviceName => _speakers.DeviceName;
+
+    public string MicrophoneDeviceName => _microphone.DeviceName;
 
     /// <summary>
     /// Joins the voice side of the room the session is already in.

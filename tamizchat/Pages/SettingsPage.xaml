@@ -83,6 +83,18 @@
 
                 <TextBlock x:Name="MicMeterLabel" Foreground="{StaticResource TcTextSecondaryBrush}" Text="Input meter" />
                 <ProgressBar x:Name="MicMeter" Maximum="100" Height="6" />
+
+                <!--
+                    What is really open, which is not always what was chosen: an
+                    unplugged device falls back to the system default, and that
+                    used to happen with nothing on screen to say so.
+                -->
+                <TextBlock
+                    x:Name="DevicesInUse"
+                    Margin="0,6,0,0"
+                    FontSize="12"
+                    TextWrapping="Wrap"
+                    Foreground="{StaticResource TcTextSecondaryBrush}" />
             </StackPanel>
 
             <StackPanel Spacing="6">

@@ -495,11 +495,57 @@ public sealed partial class SettingsPage : Page
     private void StartMeter()
     {
         _meter.Interval = TimeSpan.FromMilliseconds(60);
-        _meter.Tick += (_, _) => MicMeter.Value = Math.Min(100, VoiceService.Instance.MicLevel * 100);
+        _meter.Tick += (_, _) =>
+        {
+            MicMeter.Value = Math.Min(100, VoiceService.Instance.MicLevel * 100);
+            ShowDevicesInUse();
+        };
+
         _meter.Start();
+        ShowDevicesInUse();
     }
 
     private readonly DispatcherTimer _meter = new();
+
+    /// <summary>
+    /// Names the endpoints that are really open.
+    ///
+    /// The lists above are what was *asked* for. A device that is unplugged,
+    /// asleep or disabled when a call starts resolves to nothing and the system
+    /// default is used instead — which is indistinguishable, from the outside,
+    /// from the setting being ignored. Saying which one is open turns that from
+    /// a mystery into a fact.
+    /// </summary>
+    private void ShowDevicesInUse()
+    {
+        var voice = VoiceService.Instance;
+
+        // What is open if anything is, and otherwise what *would* open. Both
+        // answers are useful and the second one is the one somebody reads before
+        // joining, when nothing is open yet.
+        var mic = voice.MicrophoneDeviceName;
+        if (string.IsNullOrEmpty(mic))
+        {
+            mic = AudioDevices.NameInUse(SettingsStore.Current.InputDeviceId, input: true);
+        }
+
+        var speakers = voice.SpeakerDeviceName;
+        if (string.IsNullOrEmpty(speakers))
+        {
+            speakers = AudioDevices.NameInUse(SettingsStore.Current.OutputDeviceId, input: false);
+        }
+
+        var text = Loc.Get("Settings.DevicesInUse",
+            string.IsNullOrEmpty(mic) ? "—" : mic,
+            string.IsNullOrEmpty(speakers) ? "—" : speakers);
+
+        // Only touched when it changed: this runs on a 60 ms timer, and
+        // reassigning the text every tick makes the whole line flicker.
+        if (DevicesInUse.Text != text)
+        {
+            DevicesInUse.Text = text;
+        }
+    }
 
     /// <summary>
     /// One row per action: what it does, and the key bound to it.

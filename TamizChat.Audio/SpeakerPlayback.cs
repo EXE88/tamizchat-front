@@ -57,6 +57,15 @@ public sealed class SpeakerPlayback : IDisposable
     /// </summary>
     public int LatencyMilliseconds { get; private set; } = LatencyMs;
 
+    /// <summary>
+    /// The endpoint actually opened, which is not always the one that was asked
+    /// for: a device that is unplugged at the moment a call starts resolves to
+    /// nothing and the system default is used instead. That used to happen
+    /// silently, so somebody whose headset was asleep had no way to tell why
+    /// their choice appeared to be ignored.
+    /// </summary>
+    public string DeviceName { get; private set; } = "";
+
     private const int LatencyMs = 60;
 
     public bool IsRunning => _output is not null;
@@ -69,7 +78,23 @@ public sealed class SpeakerPlayback : IDisposable
         }
 
         using var enumerator = new MMDeviceEnumerator();
-        var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Communications);
+
+        // The **Console** default, not the Communications one.
+        //
+        // This is a reversal, and the reason is that the old choice was
+        // unfalsifiable from the user's side. Windows keeps two defaults: the
+        // one the volume flyout and Settings → Sound change, and a separate
+        // "default communication device" that is only reachable from the legacy
+        // Sound control panel and that OEM audio software sometimes pins
+        // somewhere else. Following the second one meant the app could play out
+        // of the laptop speakers while every volume control the user could see
+        // pointed at their headset — and nothing on screen said so.
+        //
+        // For anyone who has never touched the communications default the two
+        // are the same device, so this costs nothing and removes a whole class
+        // of "the sound comes out of the wrong thing".
+        var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Console);
+        DeviceName = target.FriendlyName;
 
         // The system is asked not to quieten everyone else's audio while this
         // stream is open; see AudioDucking for what that is about.

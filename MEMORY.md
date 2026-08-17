@@ -187,6 +187,41 @@ The wire and the storage are in `../../backend/MEMORY.md`. On this side:
   four-quadrant test picture: it appears in the members overlay and in the room
   grid, with the muted badge still drawn over it.
 
+### Audio devices: three bugs found the first time it was installed
+
+- **Notification sounds opened the system default output, never the chosen
+  one.** `EventSounds` keeps a `SpeakerPlayback` of its own for when there is no
+  call, and it was started with no device argument at all. The welcome chime is
+  the first sound anybody hears from this app and it came out of the laptop
+  speakers while the user had picked a headset — and turning the headset down did
+  nothing to it. It reads exactly like "the speaker setting is ignored", because
+  when you are alone in a room the chimes are most of what you hear.
+- **`ReopenDevices` returned early unless a voice connection existed.** Changing
+  the device on the Settings page while not in a room did nothing whatsoever, and
+  it never reached the notification output in any case.
+- **The default endpoint is the Console role now, not Communications.** Windows
+  keeps two defaults: the one the volume flyout and Settings → Sound change, and
+  a separate "default communication device" reachable only from the legacy
+  control panel, which OEM audio software sometimes pins elsewhere. Following the
+  second meant the app could play out of a device every visible volume control
+  disagreed with, and nothing on screen said so. For anyone who never touched it
+  the two are the same endpoint, so this costs nothing. **This reverses the
+  earlier deliberate choice**; the reason is that the old behaviour was
+  unfalsifiable from the user's side.
+- **Settings now names the endpoints actually open** (`AudioDevices.NameInUse`,
+  and `DeviceName` on both capture and playback). A saved id that is not
+  currently `Active` resolves to nothing and silently falls back to the default —
+  which is indistinguishable from the setting being ignored. Saying which device
+  is really open is what turns that from a mystery into a fact, and it is the
+  first thing to read when somebody reports "the wrong speakers".
+
+**Worth knowing when diagnosing this:** the dev machine has VB-Audio Virtual
+Cable installed, so `CABLE Input` / `CABLE In 16ch` appear as ordinary outputs
+and `CABLE Output` as an ordinary input. Picking one — or having Windows pick one
+as the default — sends the audio into the cable and it is simply never heard.
+That is a real explanation for "the app went completely silent" and it is not a
+bug in this app.
+
 ### There is no "somebody left the server" sound, on purpose
 
 It was removed after the first real use. It fired for people in rooms you cannot

@@ -973,4 +973,7 @@
   <data name="Settings.ImageFailed" xml:space="preserve">
     <value>That image could not be used: {0}</value>
   </data>
+  <data name="Settings.DevicesInUse" xml:space="preserve">
+    <value>In use now — microphone: {0} · speakers: {1}</value>
+  </data>
 </root>

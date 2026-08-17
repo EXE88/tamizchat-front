@@ -973,4 +973,7 @@
   <data name="Settings.ImageFailed" xml:space="preserve">
     <value>این تصویر قابل استفاده نبود: {0}</value>
   </data>
+  <data name="Settings.DevicesInUse" xml:space="preserve">
+    <value>در حال استفاده — میکروفون: {0} · بلندگو: {1}</value>
+  </data>
 </root>

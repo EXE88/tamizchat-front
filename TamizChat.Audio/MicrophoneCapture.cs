@@ -39,7 +39,14 @@ public sealed class MicrophoneCapture : IDisposable
 
     public bool IsRunning => _capture is not null;
 
-    /// <summary>Starts the default communications microphone.</summary>
+    /// <summary>
+    /// The endpoint actually opened, which is not always the one that was asked
+    /// for: a microphone that is unplugged when a call starts resolves to
+    /// nothing and the system default is used instead.
+    /// </summary>
+    public string DeviceName { get; private set; } = "";
+
+    /// <summary>Starts the chosen microphone, or the system default one.</summary>
     public void Start(MMDevice? device = null)
     {
         if (_capture is not null)
@@ -49,9 +56,13 @@ public sealed class MicrophoneCapture : IDisposable
 
         using var enumerator = new MMDeviceEnumerator();
 
-        // The Communications role, not Console: Windows lets people pick a
-        // different default for calls than for music, and this is a call.
-        var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
+        // The Console role, not Communications — the same reversal as on the
+        // playback side and for the same reason: the communications default is a
+        // second setting most people never see, and following it meant the app
+        // could be listening to a microphone the user had not chosen, with
+        // nothing on screen admitting it. See SpeakerPlayback.Start.
+        var target = device ?? enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Console);
+        DeviceName = target.FriendlyName;
 
         // Opening a microphone is what makes Windows decide a call is happening
         // and turn everything else down. This asks it not to.
